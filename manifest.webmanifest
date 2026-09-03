@@ -1,0 +1,16 @@
+{
+  "name": "Merge Queue",
+  "short_name": "Merge Queue",
+  "description": "Semantic three-way merging for humans and agents editing the same live app.",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#f4f1ea",
+  "theme_color": "#14201d",
+  "icons": [
+    {
+      "src": "./favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ]
+}
