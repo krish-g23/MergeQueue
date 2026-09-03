@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 800" role="img" aria-labelledby="title desc">
+  <title id="title">Merge Queue Devpost thumbnail</title>
+  <desc id="desc">Git-style conflict resolution for humans and agents editing the same live app.</desc>
+  <defs>
+    <clipPath id="frame"><rect width="1200" height="800"/></clipPath>
+  </defs>
+  <g clip-path="url(#frame)">
+    <rect width="1200" height="800" fill="#F5F3EE"/>
+    <path d="M0 100h1200M0 400h1200M0 700h1200M600 0v800" stroke="#CECCC5" stroke-opacity=".44"/>
+    <path d="M795 0h405v800H665c75-120 113-253 113-400S740 120 665 0z" fill="#1A1A1A"/>
+
+    <path d="M738 236h77c105 0 74 164 220 164" fill="none" stroke="#F5F3EE" stroke-width="13"/>
+    <path d="M738 400h297" fill="none" stroke="#3157D5" stroke-width="13"/>
+    <path d="M738 564h77c105 0 74-164 220-164" fill="none" stroke="#F5F3EE" stroke-width="13"/>
+    <path d="M1035 400h104" fill="none" stroke="#F5F3EE" stroke-width="13"/>
+    <circle cx="1141" cy="400" r="23" fill="#E4552F"/>
+    <path d="M850 76h285M850 724h285" stroke="#F5F3EE" stroke-opacity=".2"/>
+
+    <g transform="translate(64 67) scale(.76)">
+      <g fill="none" stroke-linecap="square" stroke-linejoin="round" stroke-width="5">
+        <path d="M5 11h14c12 0 10 21 24 21" stroke="#1A1A1A"/>
+        <path d="M5 32h38" stroke="#3157D5"/>
+        <path d="M5 53h14c12 0 10-21 24-21" stroke="#1A1A1A"/>
+        <path d="M43 32h14" stroke="#1A1A1A"/>
+      </g>
+      <circle cx="58" cy="32" r="5" fill="#E4552F"/>
+    </g>
+
+    <text x="126" y="103" fill="#1A1A1A" font-family="SFMono-Regular, Consolas, Liberation Mono, monospace" font-size="13" font-weight="700" letter-spacing="2.1">WEBMCP · MULTI-WRITER CHANGE CONTROL</text>
+    <text x="61" y="328" fill="#1A1A1A" font-family="Avenir Next, Avenir, Helvetica Neue, Arial, sans-serif" font-size="112" font-weight="600" letter-spacing="-6.5">MERGE</text>
+    <text x="61" y="424" fill="#1A1A1A" font-family="Avenir Next, Avenir, Helvetica Neue, Arial, sans-serif" font-size="112" font-weight="600" letter-spacing="-6.5">QUEUE</text>
+    <text x="66" y="505" fill="#363532" font-family="Avenir Next, Avenir, Helvetica Neue, Arial, sans-serif" font-size="26" font-weight="500">Concurrent work.</text>
+    <text x="66" y="540" fill="#363532" font-family="Avenir Next, Avenir, Helvetica Neue, Arial, sans-serif" font-size="26" font-weight="500">One deliberate commit.</text>
+    <text x="66" y="680" fill="#706E68" font-family="SFMono-Regular, Consolas, Liberation Mono, monospace" font-size="12" font-weight="700" letter-spacing="1.45">HUMAN / MAIN  +  AGENT / BRANCH  →  REVIEWED COMMIT</text>
+  </g>
+</svg>

@@ -6,7 +6,8 @@
   "description": "Semantic three-way merging for humans and agents editing the same live app.",
   "scripts": {
     "start": "python3 -m http.server 4173",
-    "test": "node --test tests/*.test.mjs"
+    "test": "node --test tests/*.test.mjs",
+    "capture:devpost": "node scripts/capture-devpost.mjs"
   },
   "license": "MIT"
 }

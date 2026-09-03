@@ -1,0 +1,65 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1440 900" role="img" aria-labelledby="title desc">
+  <title id="title">Merge Queue architecture</title>
+  <desc id="desc">Human interface and WebMCP tools share validated domain commands, with isolated main and agent state converging through a deterministic merge.</desc>
+  <rect width="1440" height="900" fill="#F5F3EE"/>
+  <path d="M48 56h1344M48 844h1344M720 56v788" stroke="#CECCC5"/>
+
+  <g transform="translate(64 66) scale(.72)">
+    <g fill="none" stroke-linecap="square" stroke-linejoin="round" stroke-width="5">
+      <path d="M5 11h14c12 0 10 21 24 21" stroke="#1A1A1A"/>
+      <path d="M5 32h38" stroke="#3157D5"/>
+      <path d="M5 53h14c12 0 10-21 24-21" stroke="#1A1A1A"/>
+      <path d="M43 32h14" stroke="#1A1A1A"/>
+    </g>
+    <circle cx="58" cy="32" r="5" fill="#E4552F"/>
+  </g>
+  <text x="120" y="103" fill="#1A1A1A" font-family="SFMono-Regular, Consolas, Liberation Mono, monospace" font-size="14" font-weight="700" letter-spacing="2">MERGE QUEUE / SYSTEM 01</text>
+  <text x="64" y="205" fill="#1A1A1A" font-family="Avenir Next, Avenir, Helvetica Neue, Arial, sans-serif" font-size="67" font-weight="600" letter-spacing="-3">ONE PAGE. TWO WRITERS.</text>
+  <text x="67" y="251" fill="#706E68" font-family="Avenir Next, Avenir, Helvetica Neue, Arial, sans-serif" font-size="24">The application—not the model—owns isolation, reconciliation, and commit.</text>
+
+  <g font-family="SFMono-Regular, Consolas, Liberation Mono, monospace" font-size="13" font-weight="700" letter-spacing="1.4">
+    <text x="70" y="345" fill="#706E68">HUMAN / MAIN</text>
+    <text x="70" y="555" fill="#3157D5">AGENT / WEBMCP</text>
+  </g>
+
+  <g font-family="Avenir Next, Avenir, Helvetica Neue, Arial, sans-serif">
+    <rect x="70" y="373" width="272" height="116" fill="#FFFFFF" stroke="#1A1A1A" stroke-width="2"/>
+    <text x="96" y="418" fill="#1A1A1A" font-size="25" font-weight="600">Visible board UI</text>
+    <text x="96" y="452" fill="#706E68" font-size="17">Owners · dates · moves</text>
+
+    <rect x="70" y="583" width="272" height="116" fill="#FFFFFF" stroke="#3157D5" stroke-width="3"/>
+    <text x="96" y="628" fill="#1A1A1A" font-size="25" font-weight="600">11 structured tools</text>
+    <text x="96" y="662" fill="#706E68" font-size="17">Read · branch · stage · review</text>
+
+    <rect x="430" y="452" width="292" height="168" fill="#1A1A1A"/>
+    <text x="458" y="500" fill="#FFFFFF" font-size="22" font-weight="600">Validated commands</text>
+    <text x="458" y="537" fill="#CECCC5" font-size="17">One domain model for UI</text>
+    <text x="458" y="566" fill="#CECCC5" font-size="17">and agent operations.</text>
+
+    <rect x="809" y="334" width="262" height="137" fill="#FFFFFF" stroke="#1A1A1A" stroke-width="2"/>
+    <text x="837" y="381" fill="#1A1A1A" font-size="25" font-weight="600">Live workspace</text>
+    <text x="837" y="417" fill="#706E68" font-size="17">Human keeps editing main.</text>
+
+    <rect x="809" y="592" width="262" height="137" fill="#EEF2FF" stroke="#3157D5" stroke-width="3"/>
+    <text x="837" y="639" fill="#1A1A1A" font-size="25" font-weight="600">Agent branch</text>
+    <text x="837" y="675" fill="#3157D5" font-size="16">Typed proposals stay isolated.</text>
+
+    <rect x="1148" y="452" width="223" height="168" fill="#FFFFFF" stroke="#E4552F" stroke-width="3"/>
+    <text x="1175" y="497" fill="#1A1A1A" font-size="20" font-weight="600">Three-way merge</text>
+    <text x="1175" y="534" fill="#23745B" font-size="17">Safe → automatic</text>
+    <text x="1175" y="564" fill="#E4552F" font-size="17">Conflict → human</text>
+    <text x="1175" y="594" fill="#706E68" font-size="17">Commit → atomic</text>
+  </g>
+
+  <g fill="none" stroke-linecap="square" stroke-width="5">
+    <path d="M342 431h51c22 0 20 105 37 105" stroke="#1A1A1A"/>
+    <path d="M342 641h51c22 0 20-105 37-105" stroke="#3157D5"/>
+    <path d="M722 536h49c29 0 11-133 38-133" stroke="#1A1A1A"/>
+    <path d="M722 536h49c29 0 11 124 38 124" stroke="#3157D5"/>
+    <path d="M1071 403h29c32 0 18 133 48 133" stroke="#1A1A1A"/>
+    <path d="M1071 660h29c32 0 18-124 48-124" stroke="#3157D5"/>
+  </g>
+  <circle cx="1371" cy="536" r="10" fill="#E4552F"/>
+
+  <text x="70" y="803" fill="#706E68" font-family="SFMono-Regular, Consolas, Liberation Mono, monospace" font-size="13" font-weight="700" letter-spacing="1.4">VERSIONED BASE  ·  STALE PREVIEW REJECTED  ·  HUMAN-ONLY COMMIT  ·  REVERT AS NEW REVISION</text>
+</svg>
