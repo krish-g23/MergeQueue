@@ -3,28 +3,37 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#f4f1ea" />
+    <meta name="theme-color" content="#f5f3ee" />
     <meta
       name="description"
       content="Merge Queue safely combines concurrent human and agent edits with a semantic three-way merge."
     />
     <meta name="color-scheme" content="light" />
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Merge Queue — concurrent work, deliberately merged" />
+    <meta property="og:description" content="Semantic three-way merging for humans and agents editing the same live application." />
+    <meta property="og:image" content="./assets/brand/social-card.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Merge Queue — concurrent work, deliberately merged" />
+    <meta name="twitter:description" content="Semantic three-way merging for humans and agents editing the same live application." />
+    <meta name="twitter:image" content="./assets/brand/social-card.png" />
     <title>Merge Queue — human + agent change control</title>
     <link rel="icon" href="./favicon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="./assets/brand/app-icon-192.png" />
     <link rel="manifest" href="./manifest.webmanifest" />
     <link rel="stylesheet" href="./styles.css" />
   </head>
   <body>
     <a class="skip-link" href="#board">Skip to board</a>
 
-    <div class="app-shell">
+    <div class="app-shell" id="app-shell">
       <header class="topbar">
         <div class="brand-lockup">
-          <div class="brand-mark" aria-hidden="true">
-            <span></span><span></span><span></span>
-          </div>
+          <img class="brand-mark" src="./assets/brand/logo-mark.svg" alt="" width="50" height="50" />
           <div>
-            <p class="eyebrow">Shared state, safely merged</p>
+            <p class="eyebrow">Multi-writer change control</p>
             <h1>Merge Queue</h1>
           </div>
         </div>
@@ -41,26 +50,50 @@
 
       <section class="hero" aria-labelledby="hero-title">
         <div class="hero-copy">
-          <p class="eyebrow">No more last-writer-wins</p>
-          <h2 id="hero-title">You keep working.<br />The agent gets a branch.</h2>
-          <p>
-            Agent proposals merge with your live edits. Safe changes land automatically;
-            real disagreements come back to you.
-          </p>
+          <div class="hero-meta">
+            <p class="eyebrow">/ Shared state, safely merged</p>
+            <span>LOCAL-FIRST · 2026</span>
+          </div>
+          <h2 id="hero-title">MERGE<br />QUEUE</h2>
+          <div class="hero-intro">
+            <span>01</span>
+            <p>
+              You keep working. The agent gets a branch. Safe changes land automatically;
+              real disagreements come back to you.
+            </p>
+          </div>
         </div>
 
-        <div class="demo-card" id="demo-card">
-          <div class="demo-card-heading">
-            <span class="step-kicker">90-second demo</span>
-            <span id="demo-progress">Step 1 of 3</span>
+        <div class="hero-stage">
+          <div class="hero-stage-heading">
+            <span>/ Concurrent work</span>
+            <span>One deliberate commit</span>
           </div>
-          <h3 id="demo-title">Start the agent’s launch plan</h3>
-          <p id="demo-description">
-            Creates a private branch and stages a deterministic set of launch-board changes.
-          </p>
-          <div class="demo-actions">
-            <button class="button button-primary" id="demo-primary" type="button">Start agent plan</button>
-            <button class="button button-quiet hidden" id="demo-secondary" type="button">Skip</button>
+          <svg class="merge-map" viewBox="0 0 720 390" aria-hidden="true">
+            <path class="merge-map-grid" d="M0 70H720M0 195H720M0 320H720" />
+            <path class="merge-path human-path" d="M54 74H250C330 74 330 195 410 195H666" />
+            <path class="merge-path agent-path" d="M54 316H250C330 316 330 195 410 195" />
+            <circle class="merge-node human-node" cx="54" cy="74" r="7" />
+            <circle class="merge-node agent-node" cx="54" cy="316" r="7" />
+            <circle class="merge-node commit-node" cx="666" cy="195" r="10" />
+            <text x="54" y="52">HUMAN / MAIN</text>
+            <text x="54" y="354">AGENT / BRANCH</text>
+            <text x="545" y="174">REVIEWED COMMIT</text>
+          </svg>
+
+          <div class="demo-card" id="demo-card">
+            <div class="demo-card-heading">
+              <span class="step-kicker">90-second walkthrough</span>
+              <span id="demo-progress">Step 1 of 3</span>
+            </div>
+            <h3 id="demo-title">Start the agent’s launch plan</h3>
+            <p id="demo-description">
+              Creates a private branch and stages a deterministic set of launch-board changes.
+            </p>
+            <div class="demo-actions">
+              <button class="button button-primary" id="demo-primary" type="button">Start agent plan</button>
+              <button class="button button-quiet hidden" id="demo-secondary" type="button">Skip</button>
+            </div>
           </div>
         </div>
       </section>
@@ -92,8 +125,9 @@
           </div>
           <div class="board-toolbar" aria-label="Board controls">
             <label class="search-control" for="task-search">
-              <span aria-hidden="true">⌕</span>
+              <span class="search-icon" aria-hidden="true"></span>
               <input id="task-search" type="search" placeholder="Search tasks" aria-label="Search tasks" autocomplete="off" />
+              <button class="search-clear hidden" id="search-clear" type="button" aria-label="Clear task search">×</button>
             </label>
             <div class="board-metrics" id="board-metrics"></div>
             <button class="view-toggle" id="archived-toggle" type="button" aria-pressed="false">
@@ -102,7 +136,10 @@
             </button>
           </div>
           <div class="board" id="board" aria-label="Project board"></div>
-          <p class="board-empty hidden" id="board-empty">No tasks match this view.</p>
+          <div class="board-empty hidden" id="board-empty">
+            <p>No tasks match this view.</p>
+            <button class="button button-quiet" id="empty-clear-search" type="button">Clear search</button>
+          </div>
         </section>
 
         <aside class="activity-panel" aria-labelledby="activity-title">
@@ -119,7 +156,7 @@
     </div>
 
     <div class="modal-backdrop hidden" id="task-modal" role="dialog" aria-modal="true" aria-labelledby="task-modal-title">
-      <form class="modal-card task-form" id="task-form">
+      <form class="modal-card task-form" id="task-form" novalidate>
         <div class="modal-header">
           <div>
             <p class="eyebrow">Human edit · main workspace</p>
@@ -130,7 +167,8 @@
         <input id="task-id" type="hidden" />
         <label>
           Title
-          <input id="task-title" name="title" required maxlength="90" />
+          <input id="task-title" name="title" required maxlength="90" aria-describedby="task-title-error" />
+          <span class="field-error" id="task-title-error" role="alert"></span>
         </label>
         <div class="form-grid">
           <label>
@@ -160,12 +198,24 @@
           <textarea id="task-description" name="description" rows="3" maxlength="280"></textarea>
         </label>
         <div class="modal-footer">
-          <button class="button button-danger hidden" id="task-archive" type="button">Archive task</button>
+          <button class="button button-warning hidden" id="task-archive" type="button">Archive task</button>
           <span class="modal-spacer"></span>
           <button class="button button-quiet" data-close-modal="task-modal" type="button">Cancel</button>
           <button class="button button-primary" type="submit">Save to main</button>
         </div>
       </form>
+    </div>
+
+    <div class="confirm-backdrop hidden" id="confirm-modal" role="alertdialog" aria-modal="true" aria-labelledby="confirm-title" aria-describedby="confirm-description">
+      <section class="confirm-card">
+        <p class="eyebrow">/ Confirm action</p>
+        <h2 id="confirm-title">Confirm action</h2>
+        <p id="confirm-description"></p>
+        <div class="confirm-actions">
+          <button class="button button-quiet" id="confirm-cancel" type="button">Cancel</button>
+          <button class="button button-warning" id="confirm-action" type="button">Continue</button>
+        </div>
+      </section>
     </div>
 
     <div class="merge-overlay hidden" id="merge-overlay" role="dialog" aria-modal="true" aria-labelledby="merge-title">
@@ -208,7 +258,7 @@
       </section>
     </div>
 
-    <div class="toast-region" id="toast-region" aria-live="polite"></div>
+    <div class="toast-region" id="toast-region" aria-live="polite" aria-atomic="false"></div>
 
     <template id="card-template">
       <article class="task-card" draggable="true" role="button" tabindex="0">
