@@ -5,11 +5,14 @@ import { registerWebMCPTools } from "./webmcp.js";
 const store = createStore();
 const $ = (selector) => document.querySelector(selector);
 const elements = {
+  appShell: $("#app-shell"),
   board: $("#board"),
   boardTitle: $("#board-title"),
   boardMetrics: $("#board-metrics"),
   boardEmpty: $("#board-empty"),
   taskSearch: $("#task-search"),
+  searchClear: $("#search-clear"),
+  emptyClearSearch: $("#empty-clear-search"),
   archivedToggle: $("#archived-toggle"),
   archivedCount: $("#archived-count"),
   revision: $("#revision-value"),
@@ -24,6 +27,12 @@ const elements = {
   taskModal: $("#task-modal"),
   taskForm: $("#task-form"),
   taskArchive: $("#task-archive"),
+  taskTitleError: $("#task-title-error"),
+  confirmModal: $("#confirm-modal"),
+  confirmTitle: $("#confirm-title"),
+  confirmDescription: $("#confirm-description"),
+  confirmCancel: $("#confirm-cancel"),
+  confirmAction: $("#confirm-action"),
   mergeOverlay: $("#merge-overlay"),
   mergeStats: $("#merge-stats"),
   safeList: $("#safe-list"),
@@ -44,8 +53,16 @@ const elements = {
 };
 
 let webMCPStatus = { supported: null, registered: 0 };
-let boardView = { query: "", archived: false };
+const initialParams = new URLSearchParams(window.location.search);
+let boardView = {
+  query: (initialParams.get("q") || "").trim().toLocaleLowerCase(),
+  archived: initialParams.get("view") === "archived",
+};
 let lastDialogTrigger = null;
+let pendingConfirmation = null;
+let searchComposing = false;
+
+elements.taskSearch.value = initialParams.get("q") || "";
 
 store.subscribe(render);
 render(store.getState());
@@ -84,7 +101,7 @@ function renderConnection() {
 }
 
 function renderBoard(state) {
-  elements.board.innerHTML = "";
+  elements.board.replaceChildren();
   const activeTasks = Object.values(state.workspace.tasks).filter((task) => !task.archived);
   const archivedTasks = Object.values(state.workspace.tasks).filter((task) => task.archived);
   const today = new Date().toISOString().slice(0, 10);
@@ -92,12 +109,14 @@ function renderBoard(state) {
   elements.archivedCount.textContent = archivedTasks.length;
   elements.archivedToggle.setAttribute("aria-pressed", String(boardView.archived));
   elements.archivedToggle.classList.toggle("is-active", boardView.archived);
-  elements.boardMetrics.innerHTML = [
+  elements.searchClear.classList.toggle("hidden", !elements.taskSearch.value);
+  elements.emptyClearSearch.classList.toggle("hidden", !boardView.query);
+  elements.boardMetrics.replaceChildren(
     metric(activeTasks.length, "active"),
     metric(activeTasks.filter((task) => task.priority === "critical").length, "critical"),
     metric(activeTasks.filter((task) => !task.ownerId).length, "unassigned"),
     metric(activeTasks.filter((task) => task.dueDate && task.dueDate < today && task.status !== "done").length, "overdue"),
-  ].join("");
+  );
 
   if (boardView.archived) {
     elements.board.classList.add("is-archive-view");
@@ -105,13 +124,15 @@ function renderBoard(state) {
     if (matches.length) {
       const column = document.createElement("section");
       column.className = "board-column archived-column";
-      column.innerHTML = `
-        <div class="column-heading">
-          <div><h3>Out of the active workflow</h3><p>Open a card to restore it.</p></div>
-          <span>${matches.length}</span>
-        </div>
-        <div class="column-cards"></div>`;
-      const cards = column.querySelector(".column-cards");
+      const heading = makeElement("div", "column-heading");
+      const headingCopy = makeElement("div");
+      headingCopy.append(
+        makeElement("h3", "", "Out of the active workflow"),
+        makeElement("p", "", "Open a card to restore it."),
+      );
+      heading.append(headingCopy, makeElement("span", "", String(matches.length)));
+      const cards = makeElement("div", "column-cards");
+      column.append(heading, cards);
       for (const task of matches) cards.append(renderTaskCard(task, state));
       elements.board.append(column);
     }
@@ -135,15 +156,14 @@ function renderBoard(state) {
     const column = document.createElement("section");
     column.className = "board-column";
     column.dataset.status = status.id;
-    column.innerHTML = `
-      <div class="column-heading">
-        <h3>${status.label}</h3>
-        <span>${tasks.length}</span>
-      </div>
-      <div class="column-cards" data-drop-status="${status.id}"></div>
-      <button class="add-task-button" type="button" data-add-status="${status.id}">+ Add task</button>
-    `;
-    const cards = column.querySelector(".column-cards");
+    const heading = makeElement("div", "column-heading");
+    heading.append(makeElement("h3", "", status.label), makeElement("span", "", String(tasks.length)));
+    const cards = makeElement("div", "column-cards");
+    cards.dataset.dropStatus = status.id;
+    const addTask = makeElement("button", "add-task-button", "+ Add task");
+    addTask.type = "button";
+    addTask.dataset.addStatus = status.id;
+    column.append(heading, cards, addTask);
     for (const task of tasks) cards.append(renderTaskCard(task, state));
     for (const proposal of proposedToRender) {
       cards.append(renderTaskCard(proposal, state, true));
@@ -217,18 +237,20 @@ function renderBranch(state) {
 }
 
 function renderActivity(state) {
-  elements.activityList.innerHTML = "";
+  elements.activityList.replaceChildren();
   elements.activityCount.textContent = state.activity.length;
   for (const entry of state.activity.slice(0, 18)) {
     const item = document.createElement("li");
     item.className = `activity-item actor-${entry.actor}`;
-    item.innerHTML = `
-      <span class="activity-marker" aria-hidden="true"></span>
-      <div>
-        <span class="activity-time">${relativeTime(entry.at)}</span>
-        <strong>${escapeHtml(entry.title)}</strong>
-        ${entry.detail ? `<p>${escapeHtml(entry.detail)}</p>` : ""}
-      </div>`;
+    const marker = makeElement("span", "activity-marker");
+    marker.setAttribute("aria-hidden", "true");
+    const copy = makeElement("div");
+    copy.append(
+      makeElement("span", "activity-time", relativeTime(entry.at)),
+      makeElement("strong", "", entry.title),
+    );
+    if (entry.detail) copy.append(makeElement("p", "", entry.detail));
+    item.append(marker, copy);
     elements.activityList.append(item);
   }
 }
@@ -268,13 +290,13 @@ function renderDemo(state) {
 function renderMerge(state) {
   const preview = state.branch.preview;
   if (!preview) return;
-  elements.mergeStats.innerHTML = [
+  elements.mergeStats.replaceChildren(
     stat(preview.stats.safe, "Safe fields", "safe"),
     stat(preview.stats.same, "Same result", "same"),
     stat(preview.stats.conflicts, "Your calls", "conflict"),
-  ].join("");
+  );
   elements.safeCount.textContent = `${preview.stats.safe} automatically compatible`;
-  elements.safeList.innerHTML = "";
+  elements.safeList.replaceChildren();
   const safeGroups = groupChanges(preview.safeChanges, state);
   if (!safeGroups.length) {
     const empty = document.createElement("p");
@@ -285,7 +307,12 @@ function renderMerge(state) {
   for (const group of safeGroups.slice(0, 8)) {
     const item = document.createElement("div");
     item.className = "safe-item";
-    item.innerHTML = `<span class="safe-check">✓</span><div><strong>${escapeHtml(group.title)}</strong><p>${escapeHtml(group.fields.join(" · "))}</p></div>`;
+    const copy = makeElement("div");
+    copy.append(
+      makeElement("strong", "", group.title),
+      makeElement("p", "", group.fields.join(" · ")),
+    );
+    item.append(makeElement("span", "safe-check", "✓"), copy);
     elements.safeList.append(item);
   }
   if (safeGroups.length > 8) {
@@ -295,7 +322,7 @@ function renderMerge(state) {
     elements.safeList.append(more);
   }
 
-  elements.conflictList.innerHTML = "";
+  elements.conflictList.replaceChildren();
   elements.conflictCount.textContent = `${preview.stats.conflicts} decision${preview.stats.conflicts === 1 ? "" : "s"}`;
   elements.conflictSection.classList.toggle("hidden", preview.conflicts.length === 0);
   for (const conflict of preview.conflicts) elements.conflictList.append(renderConflict(conflict, state));
@@ -313,34 +340,40 @@ function renderConflict(conflict, state) {
   const field = fieldLabel(conflict.field);
   const humanSelected = conflict.resolution?.choice === "human";
   const agentSelected = conflict.resolution?.choice === "agent";
-  item.innerHTML = `
-    <div class="conflict-heading">
-      <div><span>${escapeHtml(field)}</span><h4>${escapeHtml(task?.title || conflict.taskId)}</h4></div>
-      <span class="conflict-type">${conflict.kind.replaceAll("_", " ")}</span>
-    </div>
-    <div class="base-value"><span>Branch started with</span><strong>${escapeHtml(formatValue(conflict.field, conflict.baseValue, state))}</strong></div>
-    <div class="choice-grid">
-      <button class="choice-button human-choice ${humanSelected ? "is-selected" : ""}" type="button" data-conflict="${conflict.id}" data-choice="human">
-        <span>You chose</span><strong>${escapeHtml(formatValue(conflict.field, conflict.humanValue, state))}</strong>
-      </button>
-      <button class="choice-button agent-choice ${agentSelected ? "is-selected" : ""}" type="button" data-conflict="${conflict.id}" data-choice="agent">
-        <span>Agent proposed</span><strong>${escapeHtml(formatValue(conflict.field, conflict.agentValue, state))}</strong>
-      </button>
-    </div>
-    <p class="consequence"><span>↳</span>${escapeHtml(conflict.consequences[0])}</p>`;
-  item.querySelector(".human-choice").setAttribute("aria-pressed", String(humanSelected));
-  item.querySelector(".agent-choice").setAttribute("aria-pressed", String(agentSelected));
+  const heading = makeElement("div", "conflict-heading");
+  const headingCopy = makeElement("div");
+  headingCopy.append(makeElement("span", "", field), makeElement("h4", "", task?.title || conflict.taskId));
+  heading.append(headingCopy, makeElement("span", "conflict-type", conflict.kind.replaceAll("_", " ")));
+
+  const base = makeElement("div", "base-value");
+  base.append(
+    makeElement("span", "", "Branch started with"),
+    makeElement("strong", "", formatValue(conflict.field, conflict.baseValue, state)),
+  );
+
+  const choices = makeElement("div", "choice-grid");
+  const humanChoice = conflictChoice("human", "You chose", formatValue(conflict.field, conflict.humanValue, state), conflict.id, humanSelected);
+  const agentChoice = conflictChoice("agent", "Agent proposed", formatValue(conflict.field, conflict.agentValue, state), conflict.id, agentSelected);
+  choices.append(humanChoice, agentChoice);
+
+  const consequence = makeElement("p", "consequence");
+  consequence.append(makeElement("span", "", "↳"), document.createTextNode(conflict.consequences[0]));
+  item.append(heading, base, choices, consequence);
   return item;
 }
 
+function conflictChoice(choice, label, value, conflictId, selected) {
+  const button = makeElement("button", `choice-button ${choice}-choice${selected ? " is-selected" : ""}`);
+  button.type = "button";
+  button.dataset.conflict = conflictId;
+  button.dataset.choice = choice;
+  button.setAttribute("aria-pressed", String(selected));
+  button.append(makeElement("span", "", label), makeElement("strong", "", value));
+  return button;
+}
+
 function setupEvents() {
-  $("#reset-button").addEventListener("click", () => {
-    if (confirm("Reset the board and discard the current demo state?")) {
-      store.reset();
-      closeMerge();
-      toast("Demo reset", "The deterministic launch board is ready.");
-    }
-  });
+  $("#reset-button").addEventListener("click", requestDemoReset);
   elements.demoPrimary.addEventListener("click", () => {
     const action = elements.demoPrimary.dataset.action;
     try {
@@ -351,14 +384,22 @@ function setupEvents() {
         store.revertLastMerge();
         toast("Merge reverted", "The previous board was restored as a new revision.");
       }
-      if (action === "reset") store.reset();
+      if (action === "reset") requestDemoReset();
     } catch (error) {
       toast("Could not continue", error.message, "error");
     }
   });
   elements.branchPreview.addEventListener("click", openPreview);
   elements.branchAbort.addEventListener("click", () => {
-    if (confirm("Abort the agent branch? Your live board will stay unchanged.")) store.abortBranch();
+    openConfirmation({
+      title: "Abort this agent branch?",
+      description: "The staged agent proposals will be discarded. Your live workspace stays unchanged.",
+      actionLabel: "Abort branch",
+      onConfirm: () => {
+        store.abortBranch();
+        toast("Branch aborted", "The live workspace was not changed.");
+      },
+    });
   });
   elements.board.addEventListener("click", (event) => {
     const add = event.target.closest("[data-add-status]");
@@ -405,28 +446,54 @@ function setupEvents() {
   elements.taskForm.addEventListener("submit", (event) => {
     event.preventDefault();
     const input = readTaskForm();
+    if (!input.patch.title) {
+      setTaskTitleError("Enter a task title before saving.");
+      $("#task-title").focus();
+      return;
+    }
     try {
       if (input.id) store.updateWorkspaceTask(input.id, input.patch, "human");
       else store.createWorkspaceTask(input.patch, "human");
       closeModal(elements.taskModal);
     } catch (error) {
-      toast("Task not saved", error.message, "error");
+      if (error.message.startsWith("Title")) {
+        setTaskTitleError(error.message);
+        $("#task-title").focus();
+      } else {
+        toast("Task not saved", error.message, "error");
+      }
     }
   });
+  $("#task-title").addEventListener("input", () => setTaskTitleError(""));
   elements.taskArchive.addEventListener("click", () => {
     const taskId = $("#task-id").value;
     const task = store.getState().workspace.tasks[taskId];
     if (!task) return;
-    store.updateWorkspaceTask(taskId, { archived: !task.archived }, "human");
+    const willArchive = !task.archived;
+    store.updateWorkspaceTask(taskId, { archived: willArchive }, "human");
     closeModal(elements.taskModal);
-    toast(task.archived ? "Task restored" : "Task archived", task.archived ? "The task is back on the active board." : "You can restore it from the Archived view.");
+    toast(
+      willArchive ? "Task archived" : "Task restored",
+      willArchive ? "It is hidden from the active board and remains recoverable." : "The task is back on the active board.",
+      "success",
+      willArchive ? "Undo" : undefined,
+      willArchive ? () => store.updateWorkspaceTask(taskId, { archived: false }, "human") : undefined,
+    );
+  });
+  elements.taskSearch.addEventListener("compositionstart", () => { searchComposing = true; });
+  elements.taskSearch.addEventListener("compositionend", () => {
+    searchComposing = false;
+    applyTaskSearch();
   });
   elements.taskSearch.addEventListener("input", () => {
-    boardView.query = elements.taskSearch.value.trim().toLocaleLowerCase();
-    renderBoard(store.getState());
+    elements.searchClear.classList.toggle("hidden", !elements.taskSearch.value);
+    if (!searchComposing) applyTaskSearch();
   });
+  elements.searchClear.addEventListener("click", clearTaskSearch);
+  elements.emptyClearSearch.addEventListener("click", clearTaskSearch);
   elements.archivedToggle.addEventListener("click", () => {
     boardView.archived = !boardView.archived;
+    syncBoardUrl();
     renderBoard(store.getState());
   });
   document.addEventListener("click", (event) => {
@@ -435,6 +502,15 @@ function setupEvents() {
   });
   $("#merge-close").addEventListener("click", closeMerge);
   $("#merge-scrim").addEventListener("click", closeMerge);
+  elements.confirmCancel.addEventListener("click", closeConfirmation);
+  elements.confirmModal.addEventListener("click", (event) => {
+    if (event.target === elements.confirmModal) closeConfirmation();
+  });
+  elements.confirmAction.addEventListener("click", () => {
+    const action = pendingConfirmation;
+    closeConfirmation();
+    action?.();
+  });
   elements.conflictList.addEventListener("click", (event) => {
     const button = event.target.closest("[data-conflict]");
     if (!button) return;
@@ -455,21 +531,95 @@ function setupEvents() {
   document.addEventListener("keydown", (event) => {
     if (event.key === "Tab") trapDialogFocus(event);
     if (event.key === "Escape") {
-      if (!elements.mergeOverlay.classList.contains("hidden")) closeMerge();
+      if (!elements.confirmModal.classList.contains("hidden")) closeConfirmation();
+      else if (!elements.mergeOverlay.classList.contains("hidden")) closeMerge();
       else if (!elements.taskModal.classList.contains("hidden")) closeModal(elements.taskModal);
     }
   });
 }
 
+function requestDemoReset() {
+  openConfirmation({
+    title: "Reset the demo board?",
+    description: "This discards the current branch, live edits, and merge history, then restores the deterministic launch board.",
+    actionLabel: "Reset demo",
+    onConfirm: () => {
+      store.reset();
+      closeMerge(false);
+      toast("Demo reset", "The deterministic launch board is ready.");
+    },
+  });
+}
+
+function applyTaskSearch() {
+  boardView.query = elements.taskSearch.value.trim().toLocaleLowerCase();
+  syncBoardUrl();
+  renderBoard(store.getState());
+}
+
+function clearTaskSearch() {
+  elements.taskSearch.value = "";
+  boardView.query = "";
+  syncBoardUrl();
+  renderBoard(store.getState());
+  elements.taskSearch.focus();
+}
+
+function syncBoardUrl() {
+  const url = new URL(window.location.href);
+  const query = elements.taskSearch.value.trim();
+  if (query) url.searchParams.set("q", query);
+  else url.searchParams.delete("q");
+  if (boardView.archived) url.searchParams.set("view", "archived");
+  else url.searchParams.delete("view");
+  window.history.replaceState(null, "", `${url.pathname}${url.search}${url.hash}`);
+}
+
+function setTaskTitleError(message) {
+  elements.taskTitleError.textContent = message;
+  $("#task-title").setAttribute("aria-invalid", String(Boolean(message)));
+}
+
+function openConfirmation({ title, description, actionLabel, onConfirm }) {
+  lastDialogTrigger = document.activeElement;
+  pendingConfirmation = onConfirm;
+  elements.confirmTitle.textContent = title;
+  elements.confirmDescription.textContent = description;
+  elements.confirmAction.textContent = actionLabel;
+  elements.confirmModal.classList.remove("hidden");
+  syncModalState();
+  setTimeout(() => elements.confirmCancel.focus(), 0);
+}
+
+function closeConfirmation(restoreFocus = true) {
+  elements.confirmModal.classList.add("hidden");
+  pendingConfirmation = null;
+  syncModalState();
+  if (restoreFocus) restoreDialogFocus();
+}
+
 function populateSelects() {
-  $("#task-status").innerHTML = STATUSES.map((item) => `<option value="${item.id}">${item.label}</option>`).join("");
+  const statusOptions = STATUSES.map((item) => {
+    const option = makeElement("option", "", item.label);
+    option.value = item.id;
+    return option;
+  });
+  $("#task-status").replaceChildren(...statusOptions);
   const people = store.getState().workspace.people;
-  $("#task-owner").innerHTML = `<option value="">Unassigned</option>${Object.values(people).map((person) => `<option value="${person.id}">${person.name}</option>`).join("")}`;
+  const unassigned = makeElement("option", "", "Unassigned");
+  unassigned.value = "";
+  const peopleOptions = Object.values(people).map((person) => {
+    const option = makeElement("option", "", person.name);
+    option.value = person.id;
+    return option;
+  });
+  $("#task-owner").replaceChildren(unassigned, ...peopleOptions);
 }
 
 function openTaskEditor(taskId, defaultStatus = "backlog") {
   const task = taskId ? store.getState().workspace.tasks[taskId] : null;
   lastDialogTrigger = document.activeElement;
+  setTaskTitleError("");
   $("#task-modal-title").textContent = task?.archived ? "Review archived task" : task ? "Edit task" : "Create task";
   $("#task-id").value = task?.id || "";
   $("#task-title").value = task?.title || "";
@@ -481,8 +631,9 @@ function openTaskEditor(taskId, defaultStatus = "backlog") {
   elements.taskArchive.classList.toggle("hidden", !task);
   elements.taskArchive.textContent = task?.archived ? "Restore task" : "Archive task";
   elements.taskArchive.classList.toggle("button-restore", Boolean(task?.archived));
+  elements.taskArchive.classList.toggle("button-warning", !task?.archived);
   elements.taskModal.classList.remove("hidden");
-  document.body.classList.add("modal-open");
+  syncModalState();
   setTimeout(() => $("#task-title").focus(), 0);
 }
 
@@ -555,20 +706,27 @@ function showMerge() {
   lastDialogTrigger = document.activeElement;
   renderMerge(store.getState());
   elements.mergeOverlay.classList.remove("hidden");
-  document.body.classList.add("modal-open");
+  syncModalState();
   setTimeout(() => $("#merge-close").focus(), 0);
 }
 
 function closeMerge(restoreFocus = true) {
   elements.mergeOverlay.classList.add("hidden");
-  if (elements.taskModal.classList.contains("hidden")) document.body.classList.remove("modal-open");
+  syncModalState();
   if (restoreFocus) restoreDialogFocus();
 }
 
 function closeModal(modal) {
   modal.classList.add("hidden");
-  if (elements.mergeOverlay.classList.contains("hidden")) document.body.classList.remove("modal-open");
+  syncModalState();
   restoreDialogFocus();
+}
+
+function syncModalState() {
+  const hasOpenLayer = [elements.taskModal, elements.confirmModal, elements.mergeOverlay]
+    .some((layer) => !layer.classList.contains("hidden"));
+  document.body.classList.toggle("modal-open", hasOpenLayer);
+  elements.appShell.inert = hasOpenLayer;
 }
 
 function restoreDialogFocus() {
@@ -577,7 +735,9 @@ function restoreDialogFocus() {
 }
 
 function trapDialogFocus(event) {
-  const container = !elements.mergeOverlay.classList.contains("hidden")
+  const container = !elements.confirmModal.classList.contains("hidden")
+    ? elements.confirmModal.querySelector(".confirm-card")
+    : !elements.mergeOverlay.classList.contains("hidden")
     ? elements.mergeOverlay.querySelector(".merge-drawer")
     : !elements.taskModal.classList.contains("hidden")
       ? elements.taskModal.querySelector(".modal-card")
@@ -598,19 +758,36 @@ function trapDialogFocus(event) {
 }
 
 function toast(title, message, tone = "default", actionLabel, action) {
+  const key = `${tone}:${title}`;
+  elements.toastRegion.querySelector(`[data-toast-key="${CSS.escape(key)}"]`)?.remove();
   const item = document.createElement("div");
   item.className = `toast toast-${tone}`;
-  item.innerHTML = `<div><strong>${escapeHtml(title)}</strong><p>${escapeHtml(message)}</p></div>`;
+  item.dataset.toastKey = key;
+  item.setAttribute("role", tone === "error" ? "alert" : "status");
+  const copy = makeElement("div");
+  copy.append(makeElement("strong", "", title), makeElement("p", "", message));
+  item.append(copy);
+  const actions = document.createElement("div");
+  actions.className = "toast-actions";
   if (actionLabel && action) {
     const button = document.createElement("button");
     button.type = "button";
     button.textContent = actionLabel;
     button.addEventListener("click", () => { action(); item.remove(); });
-    item.append(button);
+    actions.append(button);
   }
+  const dismiss = document.createElement("button");
+  dismiss.type = "button";
+  dismiss.setAttribute("aria-label", `Dismiss ${title} notification`);
+  dismiss.textContent = "×";
+  dismiss.addEventListener("click", () => item.remove());
+  actions.append(dismiss);
+  item.append(actions);
   elements.toastRegion.append(item);
   setTimeout(() => item.classList.add("is-visible"), 10);
-  setTimeout(() => { item.classList.remove("is-visible"); setTimeout(() => item.remove(), 220); }, 6500);
+  if (tone !== "error") {
+    setTimeout(() => { item.classList.remove("is-visible"); setTimeout(() => item.remove(), 220); }, 6500);
+  }
 }
 
 function proposedTasksForStatus(state, status) {
@@ -626,7 +803,9 @@ function matchesBoardQuery(task) {
 }
 
 function metric(value, label) {
-  return `<span class="metric-pill"><strong>${value}</strong> ${label}</span>`;
+  const item = makeElement("span", "metric-pill");
+  item.append(makeElement("strong", "", String(value)), document.createTextNode(` ${label}`));
+  return item;
 }
 
 function pickMergeFields(task) {
@@ -659,7 +838,9 @@ function groupChanges(changes, state) {
 }
 
 function stat(value, label, tone) {
-  return `<div class="merge-stat stat-${tone}"><strong>${value}</strong><span>${label}</span></div>`;
+  const item = makeElement("div", `merge-stat stat-${tone}`);
+  item.append(makeElement("strong", "", String(value)), makeElement("span", "", label));
+  return item;
 }
 
 function formatValue(field, value, state) {
@@ -693,8 +874,9 @@ function relativeTime(date) {
   return `${minutes}m`;
 }
 
-function escapeHtml(value) {
-  const div = document.createElement("div");
-  div.textContent = String(value);
-  return div.innerHTML;
+function makeElement(tag, className = "", text = "") {
+  const element = document.createElement(tag);
+  if (className) element.className = className;
+  if (text !== "") element.textContent = text;
+  return element;
 }

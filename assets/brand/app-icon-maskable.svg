@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title description">
+  <title id="title">Merge Queue maskable app icon</title>
+  <desc id="description">Three paths converge into one reviewed commit on a full-bleed dark field.</desc>
+  <rect width="512" height="512" fill="#1A1A1A"/>
+  <path d="M48 48h416v416H48z" fill="none" stroke="#363532" stroke-width="2"/>
+  <g fill="none" stroke-linecap="square" stroke-linejoin="round" stroke-width="30">
+    <path d="M102 138h72c78 0 64 118 152 118" stroke="#F5F3EE"/>
+    <path d="M102 256h224" stroke="#6F8BEE"/>
+    <path d="M102 374h72c78 0 64-118 152-118" stroke="#F5F3EE"/>
+    <path d="M326 256h70" stroke="#F5F3EE"/>
+  </g>
+  <circle cx="400" cy="256" r="33" fill="#E4552F"/>
+</svg>
