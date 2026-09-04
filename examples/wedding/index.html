@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#f5eee5" />
+    <meta name="description" content="A human and an agent safely merge concurrent wedding seating changes." />
+    <title>Table Together — Merge Queue wedding demo</title>
+    <link rel="icon" href="../../favicon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <a class="skip" href="#floor-plan">Skip to floor plan</a>
+    <header class="topbar">
+      <a class="brand" href="../../index.html" aria-label="Merge Queue home">
+        <span class="brand-mark">⑂</span>
+        <span><small>Merge Queue</small><strong>Table Together</strong></span>
+      </a>
+      <nav aria-label="Demo sites">
+        <a href="../../index.html">Launch board</a>
+        <a class="active" href="./index.html">Wedding</a>
+        <a href="../shopify/index.html">Merchant</a>
+      </nav>
+      <div class="header-meta">
+        <span class="tool-status" id="tool-status"><i></i>Checking tools…</span>
+        <span>Revision <strong id="revision">1</strong></span>
+        <button class="quiet-button" id="reset" type="button">Reset</button>
+      </div>
+    </header>
+
+    <main>
+      <section class="hero">
+        <div class="hero-copy">
+          <p class="eyebrow">Ava & Marcus · September 12</p>
+          <h1>Let the agent optimize.<br /><em>You keep the final say.</em></h1>
+          <p>Move guests while your agent balances the room. Merge Queue preserves compatible choices and returns only real disagreements.</p>
+          <div class="hero-metrics" id="hero-metrics"></div>
+        </div>
+        <aside class="demo-guide">
+          <div><span id="demo-step">Step 1 of 3</span><b>90-second walkthrough</b></div>
+          <h2 id="demo-title">Ask the agent to rebalance the room</h2>
+          <p id="demo-copy">Opens a private seating branch and stages twelve proposals.</p>
+          <button class="primary-button" id="demo-button" type="button">Start agent plan</button>
+        </aside>
+      </section>
+
+      <section class="branch-bar idle" id="branch-bar" aria-live="polite">
+        <span class="branch-symbol">⑂</span>
+        <div><small id="branch-label">Main floor plan</small><strong id="branch-title">No agent branch is open</strong><p id="branch-detail">Drag guests or click a name to edit the live plan.</p></div>
+        <div class="branch-actions"><button id="abort" class="quiet-button hidden" type="button">Abort</button><button id="preview" class="dark-button hidden" type="button">Preview merge</button></div>
+      </section>
+
+      <section class="workspace">
+        <div class="floor-shell">
+          <div class="section-title"><div><p class="eyebrow">Reception room</p><h2>Floor plan</h2></div><div class="legend"><span><i class="live"></i>Live placement</span><span><i class="proposal"></i>Agent proposal</span></div></div>
+          <div class="floor-plan" id="floor-plan" aria-label="Wedding table floor plan"></div>
+        </div>
+        <aside class="activity-shell">
+          <div class="section-title"><div><p class="eyebrow">Two sets of hands</p><h2>Activity</h2></div><span class="activity-count" id="activity-count">0</span></div>
+          <ol id="activity"></ol>
+        </aside>
+      </section>
+    </main>
+
+    <div class="modal hidden" id="guest-modal" role="dialog" aria-modal="true" aria-labelledby="guest-title">
+      <form class="modal-card" id="guest-form">
+        <header><div><p class="eyebrow">Human edit · live plan</p><h2 id="guest-title">Edit guest</h2></div><button class="icon-button" type="button" data-close="guest-modal" aria-label="Close">×</button></header>
+        <input id="guest-id" type="hidden" />
+        <label>Name<input id="guest-name" required maxlength="60" /></label>
+        <div class="form-grid">
+          <label>Table<select id="guest-table"></select></label>
+          <label>Meal<select id="guest-meal"><option value="standard">Standard</option><option value="vegetarian">Vegetarian</option><option value="vegan">Vegan</option><option value="halal">Halal</option><option value="pescatarian">Pescatarian</option><option value="gluten_free">Gluten-free</option></select></label>
+        </div>
+        <label class="checkbox"><input id="guest-locked" type="checkbox" /> Lock this placement against later automation</label>
+        <label>Planner note<textarea id="guest-note" rows="3" maxlength="180"></textarea></label>
+        <footer><button class="quiet-button" type="button" data-close="guest-modal">Cancel</button><button class="primary-button" type="submit">Save to live plan</button></footer>
+      </form>
+    </div>
+
+    <div class="merge-overlay hidden" id="merge-overlay" role="dialog" aria-modal="true" aria-labelledby="merge-title">
+      <button class="scrim" id="scrim" aria-label="Close merge preview"></button>
+      <section class="merge-drawer">
+        <header><div><p class="eyebrow">Three-way seating merge</p><h2 id="merge-title">Review the room</h2></div><button class="icon-button" id="merge-close" type="button" aria-label="Close">×</button></header>
+        <div class="merge-stats" id="merge-stats"></div>
+        <div class="merge-content">
+          <section><div class="merge-section-title"><h3>Fits together</h3><span id="safe-count"></span></div><div class="safe-list" id="safe-list"></div></section>
+          <section><div class="merge-section-title"><h3>Needs your call</h3><span id="conflict-count"></span></div><div class="conflict-list" id="conflicts"></div></section>
+        </div>
+        <footer><div><strong id="readiness">Resolve every conflict</strong><span id="preview-revision"></span></div><button class="commit-button" id="commit" disabled type="button">Commit seating plan</button></footer>
+      </section>
+    </div>
+
+    <div class="toasts" id="toasts" aria-live="polite"></div>
+    <script type="module" src="./app.js"></script>
+  </body>
+</html>

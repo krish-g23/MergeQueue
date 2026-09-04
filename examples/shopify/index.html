@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#f5f5f3" />
+    <meta name="description" content="A Shopify-style merchant catalog where human and agent edits merge safely." />
+    <title>Merch Queue — Merge Queue commerce demo</title>
+    <link rel="icon" href="../../favicon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <a class="skip" href="#catalog">Skip to catalog</a>
+    <header class="topbar">
+      <a class="brand" href="../../index.html">
+        <span class="brand-mark">⑂</span>
+        <span><small>Merge Queue</small><strong>Merch Queue</strong></span>
+      </a>
+      <nav aria-label="Demo sites">
+        <a href="../../index.html">Launch board</a>
+        <a href="../wedding/index.html">Wedding</a>
+        <a class="active" href="./index.html">Merchant</a>
+      </nav>
+      <div class="header-meta">
+        <span class="tool-status" id="tool-status"><i></i>Checking tools…</span>
+        <span>Revision <strong id="revision">1</strong></span>
+        <button class="quiet-button" id="reset" type="button">Reset</button>
+      </div>
+    </header>
+
+    <main>
+      <section class="hero">
+        <div class="hero-copy">
+          <p class="eyebrow">North Star Goods · Weekend collection</p>
+          <h1>Your catalog stays live.<br /><em>The agent edits a branch.</em></h1>
+          <p>Merchandise at machine speed without losing the decisions your team makes in the meantime.</p>
+        </div>
+        <div class="commerce-metrics" id="metrics"></div>
+      </section>
+
+      <section class="control-row">
+        <div class="branch-bar idle" id="branch-bar">
+          <span class="branch-symbol">⑂</span>
+          <div>
+            <small id="branch-label">Live catalog</small>
+            <strong id="branch-title">No merchandising branch is open</strong>
+            <p id="branch-detail">Human edits publish to this simulated catalog immediately.</p>
+          </div>
+          <div class="branch-actions">
+            <button class="quiet-button hidden" id="abort" type="button">Abort</button>
+            <button class="dark-button hidden" id="preview" type="button">Preview merge</button>
+          </div>
+        </div>
+        <aside class="demo-guide">
+          <div><span id="demo-step">Step 1 of 3</span><b>Commerce demo</b></div>
+          <h2 id="demo-title">Start the weekend merchandise edit</h2>
+          <p id="demo-copy">The agent stages twelve catalog decisions on an isolated branch.</p>
+          <button class="primary-button" id="demo-button" type="button">Start agent plan</button>
+        </aside>
+      </section>
+
+      <section class="workspace">
+        <div class="catalog-shell">
+          <div class="section-title">
+            <div><p class="eyebrow">Products</p><h2>Live catalog</h2></div>
+            <div class="filters" id="filters">
+              <button class="active" data-filter="all">All</button>
+              <button data-filter="active">Active</button>
+              <button data-filter="draft">Draft</button>
+              <button data-filter="archived">Archived</button>
+            </div>
+          </div>
+          <div class="catalog" id="catalog"></div>
+        </div>
+        <aside class="activity-shell">
+          <div class="section-title"><div><p class="eyebrow">Store changes</p><h2>Activity</h2></div><span class="activity-count" id="activity-count">0</span></div>
+          <ol id="activity"></ol>
+        </aside>
+      </section>
+    </main>
+
+    <div class="modal hidden" id="product-modal" role="dialog" aria-modal="true" aria-labelledby="product-title">
+      <form class="modal-card" id="product-form">
+        <header>
+          <div><p class="eyebrow">Human edit · live catalog</p><h2 id="product-title">Edit product</h2></div>
+          <button class="icon-button" type="button" data-close="product-modal" aria-label="Close">×</button>
+        </header>
+        <input id="product-id" type="hidden" />
+        <label>Product name<input id="product-name" required maxlength="70" /></label>
+        <div class="form-grid">
+          <label>Price<input id="product-price" type="number" min="0" max="100000" step="0.01" required /></label>
+          <label>Inventory<input id="product-inventory" type="number" min="0" max="100000" step="1" required /></label>
+          <label>Collection<select id="product-collection"></select></label>
+          <label>Status<select id="product-status"><option value="active">Active</option><option value="draft">Draft</option><option value="archived">Archived</option></select></label>
+        </div>
+        <div class="checks">
+          <label><input id="product-featured" type="checkbox" /> Featured placement</label>
+          <label><input id="product-protected" type="checkbox" /> Protect price from automation</label>
+        </div>
+        <footer><button class="quiet-button" type="button" data-close="product-modal">Cancel</button><button class="primary-button" type="submit">Save to live catalog</button></footer>
+      </form>
+    </div>
+
+    <div class="merge-overlay hidden" id="merge-overlay" role="dialog" aria-modal="true" aria-labelledby="merge-title">
+      <button class="scrim" id="scrim" aria-label="Close merge preview"></button>
+      <section class="merge-drawer">
+        <header><div><p class="eyebrow">Three-way catalog merge</p><h2 id="merge-title">Review the weekend edit</h2></div><button class="icon-button" id="merge-close" type="button" aria-label="Close">×</button></header>
+        <div class="merge-stats" id="merge-stats"></div>
+        <div class="merge-content">
+          <section><div class="merge-section-title"><h3>Safe to publish</h3><span id="safe-count"></span></div><div class="safe-list" id="safe-list"></div></section>
+          <section><div class="merge-section-title"><h3>Merchant decision required</h3><span id="conflict-count"></span></div><div class="conflict-list" id="conflicts"></div></section>
+        </div>
+        <footer><div><strong id="readiness">Resolve every conflict</strong><span id="preview-revision"></span></div><button class="commit-button" id="commit" disabled type="button">Publish merged catalog</button></footer>
+      </section>
+    </div>
+
+    <div class="toasts" id="toasts" aria-live="polite"></div>
+    <script type="module" src="./app.js"></script>
+  </body>
+</html>
