@@ -30,7 +30,7 @@ Open `http://localhost:4173`.
 
 For a 16:9 recording layout, open `http://localhost:4173/?present=1`. Presentation mode keeps the prompt, WebMCP receipt, branch/base revisions, and live board in the same frame without changing product behavior.
 
-For site-tool discovery, use the latest ChatGPT desktop app with a supported model, or a compatible Chrome build with WebMCP enabled. The regular interface and deterministic demo work in browsers without WebMCP.
+For site-tool discovery, open the page in the latest ChatGPT desktop app with a supported model. Choose **Site tools** in the browser address bar; if the API is disabled, turn on **Enable site tools** in Settings → Browser → Permissions. The **Site tools** button inside Merge Queue reports the live connection, retries registration, lists the tool catalog, and runs an on-page read check. The regular interface and deterministic demo still work without WebMCP.
 
 ## Judge demo
 
@@ -42,7 +42,7 @@ The on-page guided flow is deterministic and explicitly labeled `GUIDED`:
 
 Resolve the three conflicts and commit. The resulting merge is atomic and can be reverted as a new revision.
 
-The board also supports task search, drag-to-move, keyboard editing, task creation, and a recoverable archive view. State is stored in the browser, so a refresh preserves both the live workspace and any open agent branch. Same-origin tabs in one browser profile synchronize automatically and identify incoming updates in the board header; there is intentionally no server-backed cross-device sync.
+The board also supports task search, drag-to-move, keyboard editing, a prominent **New task** action, explicit save feedback, and a recoverable archive view. State is stored in the browser, so a refresh preserves both the live workspace and any open agent branch. Same-origin tabs in one browser profile synchronize automatically and identify incoming updates in the board header; there is intentionally no server-backed cross-device sync. When an agent branch is open, live cards and agent-only destination cards are labeled separately so a successful human update cannot look stale.
 
 Suggested agent prompt:
 

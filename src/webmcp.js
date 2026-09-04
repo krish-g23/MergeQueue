@@ -1,5 +1,7 @@
 const OBJECT = { type: "object", additionalProperties: false };
 
+let registrationSession = null;
+
 function ok(message, data = {}) {
   return { ok: true, message, ...data };
 }
@@ -9,26 +11,38 @@ function failure(error) {
 }
 
 export async function registerWebMCPTools(store, onStatus) {
+  const tools = createTools(store);
+  onStatus({ supported: null, registered: registrationSession?.registered.size || 0, total: tools.length });
   const modelContext = await waitForModelContext();
   if (typeof modelContext?.registerTool !== "function") {
-    onStatus({ supported: false, registered: 0 });
-    return;
+    const status = { supported: false, registered: 0, total: tools.length };
+    onStatus(status);
+    return status;
   }
 
-  const tools = createTools(store);
-  const controller = new AbortController();
-  window.addEventListener("pagehide", () => controller.abort(), { once: true });
-  let registered = 0;
+  if (!registrationSession || registrationSession.modelContext !== modelContext) {
+    const controller = new AbortController();
+    registrationSession = { modelContext, controller, registered: new Set() };
+    window.addEventListener("pagehide", () => controller.abort(), { once: true });
+  }
+
   for (const tool of tools) {
+    if (registrationSession.registered.has(tool.name)) continue;
     try {
-      await modelContext.registerTool(withVisibleTrace(tool), { signal: controller.signal });
-      registered += 1;
-      onStatus({ supported: true, registered, total: tools.length });
+      await modelContext.registerTool(withVisibleTrace(tool), { signal: registrationSession.controller.signal });
+      registrationSession.registered.add(tool.name);
+      onStatus({ supported: true, registered: registrationSession.registered.size, total: tools.length });
     } catch (error) {
       console.error(`Could not register ${tool.name}`, error);
     }
   }
-  onStatus({ supported: registered > 0, registered, total: tools.length });
+  const status = {
+    supported: registrationSession.registered.size > 0,
+    registered: registrationSession.registered.size,
+    total: tools.length,
+  };
+  onStatus(status);
+  return status;
 }
 
 function withVisibleTrace(tool) {

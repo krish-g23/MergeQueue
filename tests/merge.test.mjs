@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { applyConflictResolutions, mergeField, mergeWorkspaces } from "../src/merge.js";
 import { createSeedState, createStore } from "../src/store.js";
-import { createTools } from "../src/webmcp.js";
+import { createTools, registerWebMCPTools } from "../src/webmcp.js";
 
 function makeTask(overrides = {}) {
   return {
@@ -360,4 +360,37 @@ test("the top-level WebMCP catalog is narrow, complete, and keeps commit human-o
   assert.equal(tools.every((tool) => tool.inputSchema.additionalProperties === false), true);
   assert.equal(tools.find((tool) => tool.name === "get_workspace_summary").annotations.readOnlyHint, true);
   assert.equal(tools.find((tool) => tool.name === "stage_task_updates").annotations, undefined);
+});
+
+test("WebMCP registration exposes working tools bound to the live store", async () => {
+  const values = new Map();
+  const registered = [];
+  const statuses = [];
+  global.localStorage = {
+    getItem: (key) => values.get(key) ?? null,
+    setItem: (key, value) => values.set(key, value),
+  };
+  global.window = { addEventListener() {}, dispatchEvent() {} };
+  global.document = {
+    modelContext: {
+      async registerTool(tool) { registered.push(tool); },
+    },
+  };
+
+  const store = createStore();
+  const status = await registerWebMCPTools(store, (next) => statuses.push(next));
+  assert.deepEqual(status, { supported: true, registered: 11, total: 11 });
+  assert.equal(registered.length, 11);
+  assert.equal(statuses.at(-1).registered, 11);
+
+  const read = registered.find(({ name }) => name === "get_workspace_summary");
+  const before = await read.execute({ statuses: ["ready"] });
+  assert.equal(before.ok, true);
+  assert.equal(before.workspace.revision, 1);
+
+  store.updateWorkspaceTask("security", { status: "in_progress" });
+  const after = await read.execute({ statuses: ["in_progress"] });
+  assert.equal(after.ok, true);
+  assert.equal(after.workspace.revision, 2);
+  assert.equal(after.workspace.tasks.some(({ id }) => id === "security"), true);
 });

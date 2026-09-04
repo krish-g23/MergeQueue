@@ -23,7 +23,7 @@
     <link rel="icon" href="./favicon.svg" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="./assets/brand/app-icon-192.png" />
     <link rel="manifest" href="./manifest.webmanifest" />
-    <link rel="stylesheet" href="./styles.css?v=20260904-live1" />
+    <link rel="stylesheet" href="./styles.css?v=20260904-tools2" />
   </head>
   <body>
     <a class="skip-link" href="#board">Skip to board</a>
@@ -45,10 +45,11 @@
         </nav>
 
         <div class="topbar-meta">
-          <div class="connection-pill" id="connection-pill">
-            <span class="status-dot"></span>
-            <span id="connection-label">Checking WebMCP tools…</span>
-          </div>
+          <button class="connection-pill" id="connection-pill" type="button" aria-haspopup="dialog" aria-controls="site-tools-modal">
+            <span class="status-dot" aria-hidden="true"></span>
+            <span id="connection-label">Checking site tools…</span>
+            <span class="connection-action" aria-hidden="true">↗</span>
+          </button>
           <div class="revision-pill">Revision <strong id="revision-value">1</strong></div>
           <button class="button button-quiet presentation-toggle" id="presentation-toggle" type="button" aria-pressed="false">
             Presentation mode
@@ -149,9 +150,12 @@
                 <span id="board-sync-detail">Saved now</span>
               </p>
             </div>
-            <div class="legend" aria-label="Card legend">
-              <span><i class="legend-dot human"></i>Live state</span>
-              <span><i class="legend-dot agent"></i>Agent proposal</span>
+            <div class="board-heading-actions">
+              <div class="legend" aria-label="Card legend">
+                <span><i class="legend-dot human"></i>Live state</span>
+                <span><i class="legend-dot agent"></i>Agent proposal</span>
+              </div>
+              <button class="button button-primary" id="new-task-button" type="button">+ New task</button>
             </div>
           </div>
           <div class="board-toolbar" aria-label="Board controls">
@@ -242,6 +246,45 @@
       </form>
     </div>
 
+    <div class="modal-backdrop hidden" id="site-tools-modal" role="dialog" aria-modal="true" aria-labelledby="site-tools-title" aria-describedby="site-tools-description">
+      <section class="modal-card site-tools-card">
+        <div class="modal-header">
+          <div>
+            <p class="eyebrow">Codex browser · WebMCP</p>
+            <h2 id="site-tools-title">Use site tools</h2>
+          </div>
+          <button class="icon-button" data-close-modal="site-tools-modal" type="button" aria-label="Close">×</button>
+        </div>
+
+        <div class="site-tools-state" id="site-tools-state" role="status" aria-live="polite">
+          <span class="status-dot" aria-hidden="true"></span>
+          <div>
+            <strong id="site-tools-status">Checking browser support…</strong>
+            <p id="site-tools-description">Looking for the browser's WebMCP connection.</p>
+          </div>
+        </div>
+
+        <ol class="site-tools-steps" id="site-tools-steps">
+          <li>In the Codex browser, open <strong>Site tools</strong> from the address bar.</li>
+          <li>If needed, turn on <strong>Enable site tools</strong> in Settings → Browser → Permissions.</li>
+          <li>Return here and choose <strong>Retry connection</strong>.</li>
+        </ol>
+
+        <div class="site-tools-result" id="site-tools-result">Run the on-page check to verify that the same live-board handler used by WebMCP can read this workspace.</div>
+
+        <details class="site-tools-catalog">
+          <summary><span id="site-tools-count">11 available tools</span></summary>
+          <code id="site-tools-list"></code>
+        </details>
+
+        <div class="modal-footer site-tools-actions">
+          <button class="button button-quiet" id="site-tools-copy" type="button">Copy Codex prompt</button>
+          <button class="button button-quiet" id="site-tools-test" type="button">Test live board</button>
+          <button class="button button-primary" id="site-tools-retry" type="button">Retry connection</button>
+        </div>
+      </section>
+    </div>
+
     <div class="confirm-backdrop hidden" id="confirm-modal" role="alertdialog" aria-modal="true" aria-labelledby="confirm-title" aria-describedby="confirm-description">
       <section class="confirm-card">
         <p class="eyebrow">/ Confirm action</p>
@@ -316,6 +359,6 @@
       </article>
     </template>
 
-    <script type="module" src="./src/app.js?v=20260904-live1"></script>
+    <script type="module" src="./src/app.js?v=20260904-tools2"></script>
   </body>
 </html>

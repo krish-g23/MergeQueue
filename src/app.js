@@ -1,6 +1,6 @@
 import { clone, deepEqual } from "./merge.js";
-import { createStore, STATUSES } from "./store.js?v=20260904-live1";
-import { registerWebMCPTools } from "./webmcp.js?v=20260904-live1";
+import { createStore, STATUSES } from "./store.js?v=20260904-tools2";
+import { createTools, registerWebMCPTools } from "./webmcp.js?v=20260904-tools2";
 
 const store = createStore();
 const $ = (selector) => document.querySelector(selector);
@@ -53,6 +53,18 @@ const elements = {
   mergeEquation: $("#merge-equation"),
   connectionPill: $("#connection-pill"),
   connectionLabel: $("#connection-label"),
+  siteToolsModal: $("#site-tools-modal"),
+  siteToolsState: $("#site-tools-state"),
+  siteToolsStatus: $("#site-tools-status"),
+  siteToolsDescription: $("#site-tools-description"),
+  siteToolsSteps: $("#site-tools-steps"),
+  siteToolsCount: $("#site-tools-count"),
+  siteToolsList: $("#site-tools-list"),
+  siteToolsResult: $("#site-tools-result"),
+  siteToolsRetry: $("#site-tools-retry"),
+  siteToolsTest: $("#site-tools-test"),
+  siteToolsCopy: $("#site-tools-copy"),
+  newTaskButton: $("#new-task-button"),
   demoProgress: $("#demo-progress"),
   demoTitle: $("#demo-title"),
   demoDescription: $("#demo-description"),
@@ -65,6 +77,10 @@ const elements = {
 };
 
 let webMCPStatus = { supported: null, registered: 0 };
+let siteToolsBusy = false;
+let siteToolCheck = null;
+const siteToolDefinitions = createTools(store);
+const codexPrompt = "Use this page's site tools to read the shipping board. Summarize the current revision and active work, then open an agent branch and stage one low-risk improvement. Do not request or commit a merge.";
 const initialParams = new URLSearchParams(window.location.search);
 let presentationMode = initialParams.get("present") === "1";
 let boardView = {
@@ -105,10 +121,7 @@ render(store.getState());
 setupEvents();
 populateSelects();
 window.setInterval(() => renderBoardSync(store.getState()), 30_000);
-registerWebMCPTools(store, (status) => {
-  webMCPStatus = status;
-  renderConnection();
-});
+connectSiteTools();
 
 function render(state) {
   elements.revision.textContent = state.workspace.revision;
@@ -142,14 +155,107 @@ function renderConnection() {
   const supported = webMCPStatus.supported;
   if (supported === null) {
     elements.connectionPill.classList.remove("is-connected", "is-partial");
-    elements.connectionLabel.textContent = "Checking WebMCP tools…";
+    elements.connectionLabel.textContent = "Checking site tools…";
+    elements.connectionPill.setAttribute("aria-label", "Checking site tools. Open connection details.");
+    renderSiteToolsDialog();
     return;
   }
   elements.connectionPill.classList.toggle("is-connected", supported);
   elements.connectionPill.classList.toggle("is-partial", Boolean(supported && webMCPStatus.total && webMCPStatus.registered < webMCPStatus.total));
   elements.connectionLabel.textContent = supported
-    ? `${webMCPStatus.registered}${webMCPStatus.total && webMCPStatus.registered < webMCPStatus.total ? ` of ${webMCPStatus.total}` : ""} WebMCP tools ready`
-    : "Guided mode · WebMCP unavailable";
+    ? `${webMCPStatus.registered}${webMCPStatus.total && webMCPStatus.registered < webMCPStatus.total ? ` of ${webMCPStatus.total}` : ""} site tools ready`
+    : "Connect site tools";
+  elements.connectionPill.setAttribute(
+    "aria-label",
+    supported
+      ? `${webMCPStatus.registered} site tools ready. Open connection details.`
+      : "Site tools are not connected. Open setup instructions.",
+  );
+  renderSiteToolsDialog();
+}
+
+async function connectSiteTools({ announce = false } = {}) {
+  if (siteToolsBusy) return;
+  siteToolsBusy = true;
+  webMCPStatus = { supported: null, registered: webMCPStatus.registered || 0, total: siteToolDefinitions.length };
+  renderConnection();
+  try {
+    const status = await registerWebMCPTools(store, (nextStatus) => {
+      webMCPStatus = nextStatus;
+      renderConnection();
+    });
+    if (status) webMCPStatus = status;
+    if (announce) {
+      const finalStatus = status || webMCPStatus;
+      toast(
+        finalStatus.supported ? "Site tools connected" : "Browser permission still needed",
+        finalStatus.supported
+          ? `${finalStatus.registered} tools are ready for Codex on this page.`
+          : "Enable site tools in the Codex browser, then retry this connection.",
+        finalStatus.supported ? "success" : "error",
+      );
+    }
+  } finally {
+    siteToolsBusy = false;
+    renderConnection();
+  }
+}
+
+function renderSiteToolsDialog() {
+  const supported = webMCPStatus.supported;
+  const partial = Boolean(supported && webMCPStatus.registered < webMCPStatus.total);
+  elements.siteToolsState.classList.toggle("is-connected", Boolean(supported && !partial));
+  elements.siteToolsState.classList.toggle("is-partial", partial);
+  elements.siteToolsStatus.textContent = supported === null
+    ? "Checking browser support…"
+    : supported
+      ? partial
+        ? `${webMCPStatus.registered} of ${webMCPStatus.total} tools connected`
+        : `${webMCPStatus.registered} site tools ready`
+      : "Browser connection required";
+  elements.siteToolsDescription.textContent = supported === null
+    ? "Looking for the browser's WebMCP connection."
+    : supported
+      ? "Codex can discover these tools while this page stays open."
+      : "The page is ready, but this browser session has not exposed WebMCP yet.";
+  elements.siteToolsSteps.classList.toggle("hidden", Boolean(supported));
+  elements.siteToolsCount.textContent = `${siteToolDefinitions.length} available tools`;
+  elements.siteToolsList.textContent = siteToolDefinitions.map(({ name }) => name).join("\n");
+  const currentRevision = store.getState().workspace.revision;
+  elements.siteToolsResult.textContent = !siteToolCheck
+    ? "Run the on-page check to verify that the same live-board handler used by WebMCP can read this workspace."
+    : siteToolCheck.error
+      ? `Live-board check failed · ${siteToolCheck.error}`
+    : siteToolCheck.revision === currentRevision
+      ? `Live-board check passed · revision ${siteToolCheck.revision} · ${siteToolCheck.activeTasks} active tasks.`
+      : `The board changed from revision ${siteToolCheck.revision} to ${currentRevision}. Run the check again for a fresh result.`;
+  elements.siteToolsRetry.disabled = siteToolsBusy;
+  elements.siteToolsRetry.textContent = siteToolsBusy ? "Checking…" : supported ? "Recheck connection" : "Retry connection";
+}
+
+function openSiteToolsDialog() {
+  lastDialogTrigger = document.activeElement;
+  elements.siteToolsModal.classList.remove("hidden");
+  syncModalState();
+  setTimeout(() => elements.siteToolsRetry.focus(), 0);
+}
+
+async function testLiveBoardHandler() {
+  const readTool = siteToolDefinitions.find(({ name }) => name === "get_workspace_summary");
+  const result = await readTool.execute({ includeArchived: false });
+  siteToolCheck = result.ok
+    ? { revision: result.workspace.revision, activeTasks: result.workspace.tasks.length }
+    : { error: result.error, revision: store.getState().workspace.revision, activeTasks: 0 };
+  renderSiteToolsDialog();
+}
+
+async function copyCodexPrompt() {
+  try {
+    await navigator.clipboard.writeText(codexPrompt);
+    toast("Codex prompt copied", "Paste it into this task while the MergeQueue tab is open.", "success");
+  } catch (error) {
+    toast("Could not copy prompt", "Copying is blocked by this browser. You can still select the prompt from the README.", "error");
+  }
 }
 
 function renderBoard(state) {
@@ -235,7 +341,7 @@ function renderTaskCard(task, state, forceProposal = false) {
   const person = state.workspace.people[display.ownerId];
   card.dataset.taskId = task.id;
   card.draggable = !display.archived && !isProposal;
-  card.setAttribute("aria-label", `${display.title}. ${display.priority} priority. ${statusLabel(display.status)}.${isProposal ? " Agent-proposed destination." : " Open task details."}`);
+  card.setAttribute("aria-label", `${display.title}. ${display.priority} priority. ${statusLabel(display.status)}.${isProposal ? " Agent proposal, not live." : " Live task. Open task details."}`);
   if (isProposal) {
     card.removeAttribute("role");
     card.removeAttribute("tabindex");
@@ -259,10 +365,10 @@ function renderTaskCard(task, state, forceProposal = false) {
   due.classList.toggle("is-overdue", Boolean(display.dueDate && display.dueDate < new Date().toISOString().slice(0, 10) && display.status !== "done"));
   if (isProposal || hasProposal) {
     card.querySelector(".proposal-chip").classList.remove("hidden");
-    card.querySelector(".proposal-chip").textContent = isProposal ? "Proposed destination" : "Agent staged";
+    card.querySelector(".proposal-chip").textContent = isProposal ? "Agent proposal" : "Live board";
     const diff = card.querySelector(".proposal-diff");
     diff.classList.remove("hidden");
-    diff.textContent = proposalSummary(live, working);
+    diff.textContent = `${isProposal ? "Proposed" : "Agent also proposes"}: ${proposalSummary(live, working)}`;
   }
   return card;
 }
@@ -442,6 +548,11 @@ function setupEvents() {
   window.addEventListener("mergequeue:tool-call", (event) => {
     recordToolTrace(event.detail);
   });
+  elements.connectionPill.addEventListener("click", openSiteToolsDialog);
+  elements.siteToolsRetry.addEventListener("click", () => connectSiteTools({ announce: true }));
+  elements.siteToolsTest.addEventListener("click", testLiveBoardHandler);
+  elements.siteToolsCopy.addEventListener("click", copyCodexPrompt);
+  elements.newTaskButton.addEventListener("click", () => openTaskEditor(null, "backlog"));
   elements.demoPrimary.addEventListener("click", () => {
     const action = elements.demoPrimary.dataset.action;
     try {
@@ -520,9 +631,15 @@ function setupEvents() {
       return;
     }
     try {
-      if (input.id) store.updateWorkspaceTask(input.id, input.patch, "human", input.version);
-      else store.createWorkspaceTask(input.patch, "human");
+      const saved = input.id
+        ? store.updateWorkspaceTask(input.id, input.patch, "human", input.version)
+        : store.createWorkspaceTask(input.patch, "human");
       closeModal(elements.taskModal);
+      toast(
+        "Shipping board updated",
+        `${saved.title} is now in ${statusLabel(saved.status)} · live revision ${store.getState().workspace.revision}.`,
+        "success",
+      );
     } catch (error) {
       if (error.message.startsWith("Title")) {
         setTaskTitleError(error.message);
@@ -903,7 +1020,7 @@ function closeModal(modal) {
 }
 
 function syncModalState() {
-  const hasOpenLayer = [elements.taskModal, elements.confirmModal, elements.mergeOverlay]
+  const hasOpenLayer = [elements.taskModal, elements.siteToolsModal, elements.confirmModal, elements.mergeOverlay]
     .some((layer) => !layer.classList.contains("hidden"));
   document.body.classList.toggle("modal-open", hasOpenLayer);
   elements.appShell.inert = hasOpenLayer;
@@ -922,6 +1039,8 @@ function trapDialogFocus(event) {
     ? elements.confirmModal.querySelector(".confirm-card")
     : !elements.mergeOverlay.classList.contains("hidden")
     ? elements.mergeOverlay.querySelector(".merge-drawer")
+    : !elements.siteToolsModal.classList.contains("hidden")
+      ? elements.siteToolsModal.querySelector(".site-tools-card")
     : !elements.taskModal.classList.contains("hidden")
       ? elements.taskModal.querySelector(".modal-card")
       : null;
