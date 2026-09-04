@@ -21,7 +21,7 @@ export async function registerWebMCPTools(store, onStatus) {
   let registered = 0;
   for (const tool of tools) {
     try {
-      await modelContext.registerTool(tool, { signal: controller.signal });
+      await modelContext.registerTool(withVisibleTrace(tool), { signal: controller.signal });
       registered += 1;
       onStatus({ supported: true, registered, total: tools.length });
     } catch (error) {
@@ -29,6 +29,46 @@ export async function registerWebMCPTools(store, onStatus) {
     }
   }
   onStatus({ supported: registered > 0, registered, total: tools.length });
+}
+
+function withVisibleTrace(tool) {
+  return {
+    ...tool,
+    execute: async (input) => {
+      const callId = `webmcp-${crypto.randomUUID()}`;
+      dispatchToolCall({
+        callId,
+        name: tool.name,
+        source: "webmcp",
+        status: "running",
+        message: "ChatGPT is calling this page tool…",
+      });
+      try {
+        const result = await tool.execute(input);
+        dispatchToolCall({
+          callId,
+          name: tool.name,
+          source: "webmcp",
+          status: result?.ok === false ? "error" : "success",
+          message: result?.message || result?.error || "Tool call completed.",
+        });
+        return result;
+      } catch (error) {
+        dispatchToolCall({
+          callId,
+          name: tool.name,
+          source: "webmcp",
+          status: "error",
+          message: error instanceof Error ? error.message : String(error),
+        });
+        throw error;
+      }
+    },
+  };
+}
+
+function dispatchToolCall(detail) {
+  window.dispatchEvent(new CustomEvent("mergequeue:tool-call", { detail }));
 }
 
 async function waitForModelContext() {

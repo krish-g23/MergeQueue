@@ -37,12 +37,53 @@ spacing:
   section-gap: "1.75rem"
   page-max: "120rem"
 components:
-  button: { }
-  card: { }
-  search: { }
-  dialog: { }
-  drawer: { }
-  toast: { }
+  page:
+    backgroundColor: "{colors.paper}"
+    textColor: "{colors.ink}"
+  button-primary:
+    backgroundColor: "{colors.primary}"
+    textColor: "{colors.surface}"
+    rounded: "{rounded.DEFAULT}"
+    padding: "{spacing.control}"
+  button-primary-hover:
+    backgroundColor: "{colors.focus}"
+  button-agent:
+    backgroundColor: "{colors.agent}"
+    textColor: "{colors.surface}"
+  status-success:
+    backgroundColor: "{colors.success}"
+    textColor: "{colors.surface}"
+  status-warning:
+    backgroundColor: "{colors.warning}"
+    textColor: "{colors.surface}"
+  status-danger:
+    backgroundColor: "{colors.danger}"
+    textColor: "{colors.surface}"
+  card:
+    backgroundColor: "{colors.surface}"
+    textColor: "{colors.ink}"
+    rounded: "{rounded.DEFAULT}"
+    padding: "{spacing.panel}"
+  card-subtle:
+    backgroundColor: "{colors.surface-subtle}"
+    textColor: "{colors.ink-soft}"
+  divider:
+    backgroundColor: "{colors.line}"
+    height: "1px"
+  search:
+    backgroundColor: "{colors.surface}"
+    textColor: "{colors.muted}"
+    height: "44px"
+  dialog:
+    backgroundColor: "{colors.surface}"
+    textColor: "{colors.ink}"
+    rounded: "{rounded.md}"
+  drawer:
+    backgroundColor: "{colors.surface}"
+    textColor: "{colors.ink}"
+  toast:
+    backgroundColor: "{colors.ink-soft}"
+    textColor: "{colors.paper}"
 ---
 
 # Merge Queue Design System
@@ -77,6 +118,8 @@ The core brand is monochrome: `ink` on `paper` or `surface`, with `line` definin
 
 The page uses a wide editorial frame capped by `page-max`. The masthead and hero follow a two-column split inspired by Aurea; the workspace switches to one column before its operational content becomes cramped. The board is a deliberate, bounded five-column dataset rendered in full and owns horizontal scrolling at narrow widths. Mobile keeps each column wide enough to scan instead of collapsing task content. Scrollable regions inherit the global visible scrollbar baseline.
 
+Presentation mode is a named desktop variant for 16:9 recording. It compresses—but does not remove—the branded hero so the prompt, live WebMCP trace, base/main revision split, and top of the board can share one frame. The underlying board and merge behavior remain identical to the standard view.
+
 ## Elevation & Depth
 
 Hierarchy comes from black/white tonal contrast, rules, and changes in type scale. Static panels and cards are flat. Hover may add a compact hard-edged shadow to indicate lift, while dialogs and the merge drawer use one restrained ambient shadow because they occupy a separate interaction layer. Blur is limited to modal backdrops.
@@ -98,6 +141,10 @@ Primary safe actions are solid ink or inverted white on dark. Secondary actions 
 ### Navigation and data display
 
 The board renders its known small dataset in full. Search and archive view state are reflected in the URL. Task cards stay rectangular and use a status line, readable title, two-line description preview, owner identity, and due date. Dragging is optional because the edit dialog's Status field provides the non-drag route.
+
+The agent trace is an audit surface, not decoration. Calls made through WebMCP are labeled `LIVE`; deterministic button-driven rehearsal steps are labeled `GUIDED` so a recording never implies that a local fallback was an external agent call.
+
+The shipping board is live across same-origin tabs in one browser profile. Its compact freshness line names that scope explicitly, distinguishes local saves from updates received from another tab, and falls back to an honest “This tab only” state if browser persistence is unavailable. It must never imply server-backed or cross-device synchronization. An open task editor pins the task version it loaded; if another tab changes that task, saving is blocked until the person deliberately reviews the latest version.
 
 ### Forms and overlays
 

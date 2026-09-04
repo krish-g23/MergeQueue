@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 520 112" role="img" aria-labelledby="title description">
+  <title id="title">Merge Queue</title>
+  <desc id="description">Merge Queue logo with the convergence mark.</desc>
+  <g transform="translate(8 24)">
+    <g fill="none" stroke-linecap="square" stroke-linejoin="round" stroke-width="5">
+      <path d="M5 5h14c12 0 10 21 24 21" stroke="#1A1A1A"/>
+      <path d="M5 26h38" stroke="#3157D5"/>
+      <path d="M5 47h14c12 0 10-21 24-21" stroke="#1A1A1A"/>
+      <path d="M43 26h14" stroke="#1A1A1A"/>
+    </g>
+    <circle cx="58" cy="26" r="5" fill="#E4552F"/>
+  </g>
+  <path d="M92 24v64" stroke="#CECCC5"/>
+  <text x="116" y="71" fill="#1A1A1A" font-family="Avenir Next, Avenir, Helvetica Neue, Arial, sans-serif" font-size="47" font-weight="600" letter-spacing="-2.3">Merge Queue</text>
+  <text x="118" y="26" fill="#706E68" font-family="SFMono-Regular, Consolas, Liberation Mono, monospace" font-size="8.5" font-weight="700" letter-spacing="1.65">MULTI-WRITER CHANGE CONTROL</text>
+</svg>

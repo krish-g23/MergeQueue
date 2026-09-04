@@ -7,7 +7,20 @@
   "scripts": {
     "start": "python3 -m http.server 4173",
     "test": "node --test tests/*.test.mjs",
-    "capture:devpost": "node scripts/capture-devpost.mjs"
+    "capture:devpost": "node scripts/capture-devpost.mjs",
+    "video:voiceover": "node video/remotion/scripts/generate-voiceover.mjs",
+    "video:studio": "remotion studio video/remotion/index.jsx --no-open",
+    "video:still": "remotion still video/remotion/index.jsx MergeQueueDemo video/output/preview.png --frame=2390",
+    "video:render": "remotion render video/remotion/index.jsx MergeQueueDemo video/output/merge-queue-demo.mp4 --codec=h264 --audio-codec=aac --crf=18"
   },
-  "license": "MIT"
+  "license": "MIT",
+  "dependencies": {
+    "@remotion/captions": "4.0.506",
+    "@remotion/cli": "4.0.506",
+    "@remotion/media": "4.0.506",
+    "@remotion/transitions": "4.0.506",
+    "react": "19.2.4",
+    "react-dom": "19.2.4",
+    "remotion": "4.0.506"
+  }
 }

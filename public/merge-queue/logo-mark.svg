@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-labelledby="title description">
+  <title id="title">Merge Queue convergence mark</title>
+  <desc id="description">Three work streams converge into one reviewed commit.</desc>
+  <g fill="none" stroke-linecap="square" stroke-linejoin="round" stroke-width="5">
+    <path d="M5 11h14c12 0 10 21 24 21" stroke="#1A1A1A"/>
+    <path d="M5 32h38" stroke="#3157D5"/>
+    <path d="M5 53h14c12 0 10-21 24-21" stroke="#1A1A1A"/>
+    <path d="M43 32h14" stroke="#1A1A1A"/>
+  </g>
+  <circle cx="58" cy="32" r="5" fill="#E4552F"/>
+</svg>

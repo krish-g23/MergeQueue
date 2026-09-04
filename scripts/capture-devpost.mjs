@@ -10,6 +10,8 @@ const outputDir = join(root, "assets", "devpost");
 const chromePath = process.env.MERGE_QUEUE_CHROME_PATH
   || "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
 const appUrl = process.env.MERGE_QUEUE_CAPTURE_URL || "http://localhost:4173";
+const captureUrl = new URL(appUrl);
+captureUrl.searchParams.set("present", "1");
 const profileDir = await mkdtemp(join(tmpdir(), "merge-queue-capture-"));
 const port = await availablePort();
 
@@ -26,7 +28,7 @@ const chrome = spawn(chromePath, [
   `--remote-debugging-port=${port}`,
   `--user-data-dir=${profileDir}`,
   "--window-size=1440,900",
-  appUrl,
+  captureUrl.href,
 ], { stdio: "ignore" });
 
 try {
@@ -40,7 +42,7 @@ try {
     deviceScaleFactor: 1,
     mobile: false,
   });
-  await waitForUrl(cdp, appUrl);
+  await waitForUrl(cdp, captureUrl.href);
   await waitForReady(cdp);
 
   await evaluate(cdp, `localStorage.removeItem("merge-queue-state-v1")`);
@@ -184,8 +186,9 @@ async function capture(cdp, path) {
 
 async function normalizeCaptureState(cdp, dismissToasts = false) {
   await evaluate(cdp, `
-    document.querySelector("#connection-label").textContent = "11 site tools ready";
+    document.querySelector("#connection-label").textContent = "11 WebMCP tools ready";
     document.querySelector("#connection-pill").classList.add("is-connected");
+    if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
     ${dismissToasts ? `document.querySelectorAll(".toast button").forEach((button) => button.click());` : ""}
   `);
   await pause(100);

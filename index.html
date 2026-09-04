@@ -23,7 +23,7 @@
     <link rel="icon" href="./favicon.svg" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="./assets/brand/app-icon-192.png" />
     <link rel="manifest" href="./manifest.webmanifest" />
-    <link rel="stylesheet" href="./styles.css" />
+    <link rel="stylesheet" href="./styles.css?v=20260904-live1" />
   </head>
   <body>
     <a class="skip-link" href="#board">Skip to board</a>
@@ -41,9 +41,12 @@
         <div class="topbar-meta">
           <div class="connection-pill" id="connection-pill">
             <span class="status-dot"></span>
-            <span id="connection-label">Checking site tools…</span>
+            <span id="connection-label">Checking WebMCP tools…</span>
           </div>
           <div class="revision-pill">Revision <strong id="revision-value">1</strong></div>
+          <button class="button button-quiet presentation-toggle" id="presentation-toggle" type="button" aria-pressed="false">
+            Presentation mode
+          </button>
           <button class="button button-quiet" id="reset-button" type="button">Reset demo</button>
         </div>
       </header>
@@ -83,16 +86,32 @@
 
           <div class="demo-card" id="demo-card">
             <div class="demo-card-heading">
-              <span class="step-kicker">90-second walkthrough</span>
+              <span class="step-kicker">Live WebMCP demo</span>
               <span id="demo-progress">Step 1 of 3</span>
             </div>
-            <h3 id="demo-title">Start the agent’s launch plan</h3>
-            <p id="demo-description">
-              Creates a private branch and stages a deterministic set of launch-board changes.
-            </p>
-            <div class="demo-actions">
-              <button class="button button-primary" id="demo-primary" type="button">Start agent plan</button>
-              <button class="button button-quiet hidden" id="demo-secondary" type="button">Skip</button>
+            <div class="demo-card-grid">
+              <div class="demo-step">
+                <h3 id="demo-title">Ask ChatGPT to reorganize the launch</h3>
+                <p id="demo-description">
+                  The agent uses the page’s structured tools to branch from revision one and stage its plan.
+                </p>
+                <div class="agent-prompt">
+                  <span>Prompt for ChatGPT</span>
+                  <code>Reorganize this launch plan around Friday’s deadline.</code>
+                </div>
+                <div class="demo-actions">
+                  <button class="button button-primary" id="demo-primary" type="button">Run guided branch</button>
+                  <button class="button button-quiet" id="copy-prompt" type="button">Copy live prompt</button>
+                </div>
+              </div>
+
+              <section class="tool-trace-panel" aria-labelledby="tool-trace-title">
+                <div class="tool-trace-heading">
+                  <span id="tool-trace-title">Agent / WebMCP trace</span>
+                  <strong id="tool-call-count">Waiting</strong>
+                </div>
+                <ol class="tool-trace-list" id="tool-trace" aria-live="polite"></ol>
+              </section>
             </div>
           </div>
         </div>
@@ -117,6 +136,12 @@
             <div>
               <p class="eyebrow">Friday launch</p>
               <h2 id="board-title">Shipping board</h2>
+              <p class="board-sync" id="board-sync" role="status" aria-live="polite">
+                <span class="board-sync-dot" aria-hidden="true"></span>
+                <span id="board-sync-label">Live across tabs in this browser</span>
+                <span class="board-sync-separator" aria-hidden="true">·</span>
+                <span id="board-sync-detail">Saved now</span>
+              </p>
             </div>
             <div class="legend" aria-label="Card legend">
               <span><i class="legend-dot human"></i>Live state</span>
@@ -165,6 +190,7 @@
           <button class="icon-button" data-close-modal="task-modal" type="button" aria-label="Close">×</button>
         </div>
         <input id="task-id" type="hidden" />
+        <input id="task-version" type="hidden" />
         <label>
           Title
           <input id="task-title" name="title" required maxlength="90" aria-describedby="task-title-error" />
@@ -197,11 +223,15 @@
           Description
           <textarea id="task-description" name="description" rows="3" maxlength="280"></textarea>
         </label>
+        <div class="form-alert hidden" id="task-stale-alert" role="alert">
+          <span id="task-stale-message"></span>
+          <button class="button button-quiet" id="task-reload" type="button">Review latest</button>
+        </div>
         <div class="modal-footer">
           <button class="button button-warning hidden" id="task-archive" type="button">Archive task</button>
           <span class="modal-spacer"></span>
           <button class="button button-quiet" data-close-modal="task-modal" type="button">Cancel</button>
-          <button class="button button-primary" type="submit">Save to main</button>
+          <button class="button button-primary" id="task-save" type="submit">Save to main</button>
         </div>
       </form>
     </div>
@@ -225,13 +255,17 @@
           <div>
             <p class="eyebrow">Three-way merge · human decides</p>
             <h2 id="merge-title">Review the merge</h2>
+            <p class="merge-equation" id="merge-equation">BASE R1 + MAIN R1 + AGENT BRANCH</p>
           </div>
-          <button class="icon-button" id="merge-close" type="button" aria-label="Close">×</button>
+          <div class="merge-header-actions">
+            <span class="human-gate">Human-only commit</span>
+            <button class="icon-button" id="merge-close" type="button" aria-label="Close">×</button>
+          </div>
         </div>
 
         <div class="merge-stats" id="merge-stats"></div>
         <div class="merge-body">
-          <section>
+          <section class="safe-section">
             <div class="merge-section-title">
               <h3>Safe changes</h3>
               <span id="safe-count"></span>
@@ -276,6 +310,6 @@
       </article>
     </template>
 
-    <script type="module" src="./src/app.js"></script>
+    <script type="module" src="./src/app.js?v=20260904-live1"></script>
   </body>
 </html>

@@ -11,6 +11,7 @@ export const STATUSES = [
 export const PRIORITIES = ["low", "medium", "high", "critical"];
 
 const STORAGE_KEY = "merge-queue-state-v1";
+const SYNC_CHANNEL = `${STORAGE_KEY}:live`;
 
 const PEOPLE = {
   maya: { id: "maya", name: "Maya", initials: "MY", color: "#7357e8" },
@@ -38,6 +39,7 @@ function task(id, title, status, position, priority, ownerId, dueDate, descripti
 }
 
 export function createSeedState() {
+  const now = new Date().toISOString();
   const tasks = [
     task("research", "Confirm launch narrative", "done", 0, "high", "maya", "2026-09-02", "Lock the one-line story and proof points."),
     task("analytics", "Verify analytics events", "ready", 0, "high", "sam", "2026-09-06", "Confirm acquisition and activation events."),
@@ -65,10 +67,13 @@ export function createSeedState() {
       revision: 1,
       people: clone(PEOPLE),
       tasks: Object.fromEntries(tasks.map((item) => [item.id, item])),
-      updatedAt: new Date().toISOString(),
+      updatedAt: now,
     },
     branch: null,
     lastCommit: null,
+    syncVersion: 1,
+    syncUpdatedAt: now,
+    syncMutationId: "seed",
     activity: [
       activity("system", "Workspace ready", "The Friday launch board is seeded for a repeatable demo."),
     ],
@@ -131,7 +136,10 @@ function validateDueDate(value) {
 function loadState() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) return JSON.parse(raw);
+    if (raw) {
+      const restored = normalizeStoredState(JSON.parse(raw));
+      if (restored) return restored;
+    }
   } catch (error) {
     console.warn("Could not restore workspace state", error);
   }
@@ -141,15 +149,80 @@ function loadState() {
 export function createStore() {
   let state = loadState();
   const listeners = new Set();
+  const sourceId = crypto.randomUUID();
+  let broadcastChannel = null;
+
+  const handleStorage = (event) => {
+    if (event.key === STORAGE_KEY && event.newValue) acceptExternalState(event.newValue, "storage");
+  };
+
+  if (typeof window !== "undefined" && typeof window.addEventListener === "function") {
+    window.addEventListener("storage", handleStorage);
+    if (typeof window.BroadcastChannel === "function") {
+      try {
+        broadcastChannel = new window.BroadcastChannel(SYNC_CHANNEL);
+        broadcastChannel.addEventListener("message", (event) => {
+          if (event.data?.sourceId !== sourceId && event.data?.state) {
+            acceptExternalState(event.data.state, "broadcast", event.data.persisted !== false);
+          }
+        });
+      } catch (error) {
+        console.warn("Could not open live board channel", error);
+      }
+    }
+  }
 
   function emit() {
+    state.syncVersion = normalizedSyncVersion(state) + 1;
+    state.syncUpdatedAt = new Date().toISOString();
+    state.syncMutationId = `${sourceId}:${state.syncVersion}:${crypto.randomUUID()}`;
+    let persisted = false;
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+      persisted = true;
     } catch (error) {
       console.warn("Could not persist workspace state", error);
     }
-    listeners.forEach((listener) => listener(state));
+    notify({ source: "local", persisted, concurrent: false });
+    try {
+      broadcastChannel?.postMessage({ sourceId, state, persisted });
+    } catch (error) {
+      console.warn("Could not broadcast live board state", error);
+    }
+  }
+
+  function notify(change) {
+    listeners.forEach((listener) => listener(state, change));
     if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent("mergequeue:state", { detail: state }));
+  }
+
+  function acceptExternalState(value, transport, persisted = true) {
+    try {
+      const incoming = normalizeStoredState(typeof value === "string" ? JSON.parse(value) : clone(value));
+      if (!incoming || incoming.syncMutationId === state.syncMutationId) return;
+      const comparison = compareSyncClock(incoming, state);
+      const concurrent = normalizedSyncVersion(incoming) === normalizedSyncVersion(state);
+      if (comparison > 0) {
+        state = incoming;
+        notify({ source: "external", transport, persisted, concurrent });
+        return;
+      }
+      if (concurrent && comparison < 0) {
+        // Two tabs can write the same local revision within one event loop. Reassert
+        // the deterministic winner so every open tab converges on one snapshot.
+        let reconciledPersisted = false;
+        try {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+          reconciledPersisted = true;
+          broadcastChannel?.postMessage({ sourceId, state, persisted: true });
+        } catch (error) {
+          console.warn("Could not reconcile concurrent board state", error);
+        }
+        notify({ source: "local", persisted: reconciledPersisted, concurrent: true });
+      }
+    } catch (error) {
+      console.warn("Could not apply live board update", error);
+    }
   }
 
   function addActivity(actor, title, detail = "") {
@@ -157,9 +230,12 @@ export function createStore() {
     state.activity = state.activity.slice(0, 80);
   }
 
-  function updateWorkspaceTask(taskId, patch, actor = "human") {
+  function updateWorkspaceTask(taskId, patch, actor = "human", expectedVersion) {
     const current = state.workspace.tasks[taskId];
     if (!current) throw new Error(`Task not found: ${taskId}`);
+    if (expectedVersion !== undefined && current.version !== expectedVersion) {
+      throw new Error("This task changed in another tab. Review the latest version before saving.");
+    }
     const cleanPatch = validateTaskPatch(patch, state.workspace.people);
     if (cleanPatch.status && cleanPatch.status !== current.status) {
       cleanPatch.position = Object.values(state.workspace.tasks).filter((item) => item.id !== taskId && item.status === cleanPatch.status && !item.archived).length;
@@ -434,7 +510,9 @@ export function createStore() {
   }
 
   function reset() {
+    const currentSyncVersion = normalizedSyncVersion(state);
     state = createSeedState();
+    state.syncVersion = currentSyncVersion;
     emit();
   }
 
@@ -453,9 +531,18 @@ export function createStore() {
     return () => listeners.delete(listener);
   }
 
+  function destroy() {
+    if (typeof window !== "undefined" && typeof window.removeEventListener === "function") {
+      window.removeEventListener("storage", handleStorage);
+    }
+    broadcastChannel?.close();
+    listeners.clear();
+  }
+
   return {
     getState,
     subscribe,
+    destroy,
     reset,
     updateWorkspaceTask,
     createWorkspaceTask,
@@ -468,6 +555,34 @@ export function createStore() {
     abortBranch,
     revertLastMerge,
   };
+}
+
+function normalizeStoredState(value) {
+  if (!value || typeof value !== "object" || !value.workspace || typeof value.workspace !== "object") return null;
+  if (!value.workspace.tasks || typeof value.workspace.tasks !== "object" || !value.workspace.people || typeof value.workspace.people !== "object") return null;
+  if (!Array.isArray(value.activity)) value.activity = [];
+  if (!Number.isInteger(value.syncVersion) || value.syncVersion < 1) {
+    value.syncVersion = Math.max(1, Number(value.workspace.revision) || 1) + value.activity.length;
+  }
+  if (typeof value.syncUpdatedAt !== "string") {
+    value.syncUpdatedAt = value.activity[0]?.at || value.workspace.updatedAt || new Date().toISOString();
+  }
+  if (typeof value.syncMutationId !== "string") {
+    value.syncMutationId = `legacy:${value.syncUpdatedAt}:${value.activity.length}:${value.branch?.operations?.length || 0}`;
+  }
+  return value;
+}
+
+function normalizedSyncVersion(value) {
+  return Number.isInteger(value?.syncVersion) ? value.syncVersion : Math.max(1, Number(value?.workspace?.revision) || 1);
+}
+
+function compareSyncClock(left, right) {
+  const versionDifference = normalizedSyncVersion(left) - normalizedSyncVersion(right);
+  if (versionDifference) return versionDifference;
+  const timeDifference = String(left.syncUpdatedAt || "").localeCompare(String(right.syncUpdatedAt || ""));
+  if (timeDifference) return timeDifference;
+  return String(left.syncMutationId || "").localeCompare(String(right.syncMutationId || ""));
 }
 
 function describePatch(before, patch, people) {

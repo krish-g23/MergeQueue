@@ -1,0 +1,17 @@
+An agent changed twenty-six fields while I continued working. I reviewed only three—and none of my work was lost.
+
+It’s Thursday afternoon. Maya is preparing a product launch for Friday. She asks an agent to reorganize the launch board—but she cannot stop working while it runs.
+
+The agent branches from revision one. Meanwhile, Maya changes owners, deadlines, and workflow status. By the time the agent finishes, the board is already at revision five.
+
+The agent remembers every tool call. But that history cannot decide whether Maya or Dev should own security. If the agent writes directly, someone’s decision disappears.
+
+That’s why we built Merge Queue: Git-style conflict resolution for humans and agents editing the same live application.
+
+Through WebMCP, the agent reads the board, opens an isolated branch, and stages thirteen operations. Merge Queue compares its base, Maya’s current board, and the agent proposal. Twenty-two changes are safe. One matches. Only three need human judgment. Maya keeps Friday, chooses herself as owner, and leaves the demo in progress. Everything else merges automatically.
+
+The agent cannot resolve these conflicts or commit the merge. Maya approves one atomic revision—and can revert it without erasing history.
+
+WebMCP makes this possible inside the live application: structured tools, versioned state, visible operations, and narrow permissions.
+
+Agents bring speed. People keep judgment. Merge Queue makes room for both.

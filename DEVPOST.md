@@ -88,7 +88,7 @@ The current project board proves the interaction locally. The same model could s
 
 > Inspect this launch board and create an agent branch. Reorganize the work for a Friday launch: prioritize blockers, assign unowned work based on workload, move completed work into Review, and archive obviously stale tasks. Stage the changes, then preview the merge. Do not commit without me.
 
-If the judge wants the guaranteed three-conflict path, the on-page **90-second walkthrough** produces the exact state without relying on model variability.
+If the judge wants the guaranteed three-conflict path, the on-page **guided flow** produces the exact state without relying on model variability and labels those steps `GUIDED`.
 
 ## Demo video
 
@@ -102,25 +102,23 @@ Merge Queue lets a human and browser agent edit the same live project board with
 
 Built for the WebMCP Challenge: `LIVE_URL`
 
-### 2:15 script and shot list
+### 2:00 Remotion production package
 
-| Time | Show | Voiceover |
-| --- | --- | --- |
-| 0:00–0:12 | Hero and board; keep “11 site tools ready” visible. | “What happens when you and an agent edit the same live app at the same time? Today, one of you usually overwrites the other. Merge Queue replaces that race with a reviewed merge.” |
-| 0:12–0:27 | Briefly show the agent prompt and WebMCP tool discovery. | “The page exposes eleven structured WebMCP tools. The agent reads the live revision and opens an isolated branch—inside the application, not as a dry run.” |
-| 0:27–0:45 | Start the agent plan. Pan across blue `AGENT STAGED` labels and proposed destinations. | “The agent stages thirteen coordinated changes: owners, deadlines, workflow moves, an archive, and a new task. Main is untouched, and every proposal stays visible.” |
-| 0:45–1:02 | Use **Make concurrent edits**; highlight revision changing from 1 to 5 and the activity feed. | “While that work exists, I keep editing the board. I assign Maya, move the video task, change a deadline, and create a judge-check task. These are real live edits.” |
-| 1:02–1:25 | Open **Preview merge**. Pause on the counts, then the three cards. | “Merge Queue compares the branch base, my current board, and the agent proposal. Twenty-two field changes are compatible. One reached the same result. Only three need me.” |
-| 1:25–1:45 | Select a mixture of human and agent values. | “Instead of reviewing every operation, I resolve the actual differences: which deadline, which owner, and which workflow state. The app explains the consequence of each choice.” |
-| 1:45–1:58 | Commit and show the updated branch strip/toast. | “The combined result lands atomically only after my approval. The agent never receives a commit tool.” |
-| 1:58–2:08 | Revert the merge. | “If I change my mind, revert restores the exact previous board as a new revision—without erasing history.” |
-| 2:08–2:15 | Return to logo/hero. | “The model may remember its calls. Merge Queue makes concurrent intent safe. Humans keep working. Agents get a branch.” |
+The canonical cut runs exactly 120 seconds at 30 fps. The complete handoff is in:
+
+- [`video/STORY_SCRIPT.md`](./video/STORY_SCRIPT.md) — narrative, shot direction, and clean voiceover
+- [`video/REMOTION_PROMPT.md`](./video/REMOTION_PROMPT.md) — paste-ready creative and implementation brief
+- [`video/remotion-script.json`](./video/remotion-script.json) — nine story beats totaling exactly 3,600 frames
+- [`video/voiceover.txt`](./video/voiceover.txt) — final 225-word narration
+- [`video/captions.json`](./video/captions.json) — initial captions in Remotion's caption data shape
+- [`video/output/merge-queue-demo.mp4`](./video/output/merge-queue-demo.mp4) — rendered 1080p submission video
 
 ### Recording checklist
 
 - Record at 1440 × 900 or 1920 × 1080 with the browser zoom at 100%.
-- Use ChatGPT's in-app browser or Chrome with WebMCP enabled so **11 site tools ready** is visible.
-- Keep the final edit below three minutes; aim for 2:10–2:25.
+- Open `LIVE_URL?present=1` so the prompt, visible WebMCP receipt, revisions, and board share one 16:9 composition.
+- Use ChatGPT's in-app browser or Chrome with WebMCP enabled so **11 WebMCP tools ready** and `LIVE` call receipts are visible.
+- Keep the canonical cut at exactly 2:00.
 - Use a screen recording with live narration, not a marketing montage.
 - Add captions and verify that the public YouTube or Vimeo link embeds when logged out.
 - Reset the demo immediately before recording so the opening revision is 1.
@@ -145,4 +143,3 @@ Do not claim without further implementation:
 - Cross-operation dependency invalidation
 - Multiple simultaneous agent branches
 - Remote multi-user synchronization
-

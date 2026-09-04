@@ -265,6 +265,81 @@ test("moving a live task appends it to its destination and keeps positions uniqu
   assert.deepEqual(tasks.map((task) => task.position), [0, 1, 2, 3]);
 });
 
+test("a newer board snapshot from another tab is applied live", () => {
+  const values = new Map();
+  const eventListeners = new Map();
+  global.localStorage = {
+    getItem: (key) => values.get(key) ?? null,
+    setItem: (key, value) => values.set(key, value),
+  };
+  global.window = {
+    addEventListener(type, listener) { eventListeners.set(type, listener); },
+    removeEventListener(type, listener) {
+      if (eventListeners.get(type) === listener) eventListeners.delete(type);
+    },
+    dispatchEvent() {},
+  };
+
+  const store = createStore();
+  let observedChange = null;
+  store.subscribe((_state, change) => { observedChange = change; });
+  const incoming = structuredClone(store.getState());
+  incoming.workspace.tasks.security.status = "in_progress";
+  incoming.workspace.revision += 1;
+  incoming.syncVersion += 1;
+  incoming.syncUpdatedAt = new Date(Date.now() + 1_000).toISOString();
+  incoming.syncMutationId = "other-tab:2:test";
+
+  eventListeners.get("storage")({
+    key: "merge-queue-state-v1",
+    newValue: JSON.stringify(incoming),
+  });
+
+  assert.equal(store.getState().workspace.tasks.security.status, "in_progress");
+  assert.deepEqual(observedChange, {
+    source: "external",
+    transport: "storage",
+    persisted: true,
+    concurrent: false,
+  });
+  store.destroy();
+  assert.equal(eventListeners.has("storage"), false);
+});
+
+test("reset keeps the live sync clock monotonic", () => {
+  const values = new Map();
+  global.localStorage = {
+    getItem: (key) => values.get(key) ?? null,
+    setItem: (key, value) => values.set(key, value),
+  };
+  global.window = { dispatchEvent() {} };
+
+  const store = createStore();
+  store.updateWorkspaceTask("security", { ownerId: "maya" });
+  const beforeReset = store.getState().syncVersion;
+  store.reset();
+  assert.equal(store.getState().syncVersion, beforeReset + 1);
+  assert.equal(store.getState().workspace.revision, 1);
+});
+
+test("a stale task editor cannot overwrite a newer tab version", () => {
+  const values = new Map();
+  global.localStorage = {
+    getItem: (key) => values.get(key) ?? null,
+    setItem: (key, value) => values.set(key, value),
+  };
+  global.window = { dispatchEvent() {} };
+
+  const store = createStore();
+  const editorVersion = store.getState().workspace.tasks.security.version;
+  store.updateWorkspaceTask("security", { status: "in_progress" });
+  assert.throws(
+    () => store.updateWorkspaceTask("security", { ownerId: "maya" }, "human", editorVersion),
+    /changed in another tab/,
+  );
+  assert.equal(store.getState().workspace.tasks.security.ownerId, null);
+});
+
 test("the top-level WebMCP catalog is narrow, complete, and keeps commit human-only", () => {
   const tools = createTools({});
   const names = tools.map((tool) => tool.name);

@@ -16,23 +16,27 @@ python3 -m http.server 4173
 
 Open `http://localhost:4173`.
 
+For a 16:9 recording layout, open `http://localhost:4173/?present=1`. Presentation mode keeps the prompt, WebMCP receipt, branch/base revisions, and live board in the same frame without changing product behavior.
+
 For site-tool discovery, use the latest ChatGPT desktop app with a supported model, or a compatible Chrome build with WebMCP enabled. The regular interface and deterministic demo work in browsers without WebMCP.
 
 ## Judge demo
 
-The on-page three-step walkthrough is deterministic:
+The on-page guided flow is deterministic and explicitly labeled `GUIDED`:
 
-1. **Start agent plan** — opens a branch and stages 13 bounded proposals.
-2. **Make concurrent edits** — applies four human changes to the live board.
+1. **Run guided branch** — opens a branch and stages 13 bounded proposals.
+2. **Apply human edits** — applies four human changes to the live board.
 3. **Preview merge** — automatically combines compatible edits and surfaces exactly three conflicts.
 
 Resolve the three conflicts and commit. The resulting merge is atomic and can be reverted as a new revision.
 
-The board also supports task search, drag-to-move, keyboard editing, task creation, and a recoverable archive view. State is stored in the browser, so a refresh preserves both the live workspace and any open agent branch.
+The board also supports task search, drag-to-move, keyboard editing, task creation, and a recoverable archive view. State is stored in the browser, so a refresh preserves both the live workspace and any open agent branch. Same-origin tabs in one browser profile synchronize automatically and identify incoming updates in the board header; there is intentionally no server-backed cross-device sync.
 
 Suggested agent prompt:
 
 > Inspect this launch board and create an agent branch. Reorganize the work for a Friday launch: prioritize blockers, assign unowned work based on workload, move completed work into Review, and archive obviously stale tasks. Stage the changes, then preview the merge. Do not commit without me.
+
+Calls made by ChatGPT are shown in the page as `LIVE` receipts. The guided fallback uses the same state transitions but remains labeled `GUIDED`, so a screen recording cannot confuse the rehearsal with an external agent call.
 
 ## WebMCP tools
 

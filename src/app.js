@@ -1,6 +1,6 @@
 import { clone, deepEqual } from "./merge.js";
-import { createStore, STATUSES } from "./store.js";
-import { registerWebMCPTools } from "./webmcp.js";
+import { createStore, STATUSES } from "./store.js?v=20260904-live1";
+import { registerWebMCPTools } from "./webmcp.js?v=20260904-live1";
 
 const store = createStore();
 const $ = (selector) => document.querySelector(selector);
@@ -8,6 +8,9 @@ const elements = {
   appShell: $("#app-shell"),
   board: $("#board"),
   boardTitle: $("#board-title"),
+  boardSync: $("#board-sync"),
+  boardSyncLabel: $("#board-sync-label"),
+  boardSyncDetail: $("#board-sync-detail"),
   boardMetrics: $("#board-metrics"),
   boardEmpty: $("#board-empty"),
   taskSearch: $("#task-search"),
@@ -27,7 +30,11 @@ const elements = {
   taskModal: $("#task-modal"),
   taskForm: $("#task-form"),
   taskArchive: $("#task-archive"),
+  taskSave: $("#task-save"),
   taskTitleError: $("#task-title-error"),
+  taskStaleAlert: $("#task-stale-alert"),
+  taskStaleMessage: $("#task-stale-message"),
+  taskReload: $("#task-reload"),
   confirmModal: $("#confirm-modal"),
   confirmTitle: $("#confirm-title"),
   confirmDescription: $("#confirm-description"),
@@ -43,31 +50,61 @@ const elements = {
   commitButton: $("#commit-button"),
   mergeReadiness: $("#merge-readiness"),
   mergeRevisionNote: $("#merge-revision-note"),
+  mergeEquation: $("#merge-equation"),
   connectionPill: $("#connection-pill"),
   connectionLabel: $("#connection-label"),
   demoProgress: $("#demo-progress"),
   demoTitle: $("#demo-title"),
   demoDescription: $("#demo-description"),
   demoPrimary: $("#demo-primary"),
+  copyPrompt: $("#copy-prompt"),
+  presentationToggle: $("#presentation-toggle"),
+  toolTrace: $("#tool-trace"),
+  toolCallCount: $("#tool-call-count"),
   toastRegion: $("#toast-region"),
 };
 
 let webMCPStatus = { supported: null, registered: 0 };
 const initialParams = new URLSearchParams(window.location.search);
+let presentationMode = initialParams.get("present") === "1";
 let boardView = {
   query: (initialParams.get("q") || "").trim().toLocaleLowerCase(),
   archived: initialParams.get("view") === "archived",
 };
 let lastDialogTrigger = null;
+let lastDialogFallbackSelector = null;
 let pendingConfirmation = null;
 let searchComposing = false;
+let traceSequence = 0;
+const toolTrace = [];
+let boardSyncStatus = {
+  source: "initial",
+  persisted: true,
+  concurrent: false,
+  at: store.getState().syncUpdatedAt || store.getState().workspace.updatedAt,
+};
 
 elements.taskSearch.value = initialParams.get("q") || "";
+setPresentationMode(presentationMode, false);
+renderToolTrace();
 
-store.subscribe(render);
+store.subscribe((state, change = {}) => {
+  boardSyncStatus = {
+    source: change.source || "local",
+    persisted: change.persisted !== false,
+    concurrent: Boolean(change.concurrent),
+    at: state.syncUpdatedAt || state.workspace.updatedAt,
+  };
+  if (change.source === "external") markTaskEditorStale(state);
+  render(state);
+  if (change.concurrent) {
+    toast("Concurrent tab update reconciled", "The board converged on the newest local snapshot. Review recent activity before continuing.", "error");
+  }
+});
 render(store.getState());
 setupEvents();
 populateSelects();
+window.setInterval(() => renderBoardSync(store.getState()), 30_000);
 registerWebMCPTools(store, (status) => {
   webMCPStatus = status;
   renderConnection();
@@ -75,6 +112,7 @@ registerWebMCPTools(store, (status) => {
 
 function render(state) {
   elements.revision.textContent = state.workspace.revision;
+  renderBoardSync(state);
   renderBoard(state);
   renderBranch(state);
   renderActivity(state);
@@ -86,18 +124,32 @@ function render(state) {
   renderConnection();
 }
 
+function renderBoardSync(state) {
+  const failed = boardSyncStatus.persisted === false;
+  const fromAnotherTab = boardSyncStatus.source === "external";
+  elements.boardSync.classList.toggle("is-limited", failed);
+  elements.boardSync.classList.toggle("is-remote-update", fromAnotherTab);
+  if (failed) {
+    elements.boardSyncLabel.textContent = "This tab only";
+    elements.boardSyncDetail.textContent = "Browser storage unavailable";
+    return;
+  }
+  elements.boardSyncLabel.textContent = fromAnotherTab ? "Updated from another tab" : "Live across tabs in this browser";
+  elements.boardSyncDetail.textContent = `${fromAnotherTab ? "Received" : "Saved"} ${relativeTime(boardSyncStatus.at || state.workspace.updatedAt)}`;
+}
+
 function renderConnection() {
   const supported = webMCPStatus.supported;
   if (supported === null) {
     elements.connectionPill.classList.remove("is-connected", "is-partial");
-    elements.connectionLabel.textContent = "Checking site tools…";
+    elements.connectionLabel.textContent = "Checking WebMCP tools…";
     return;
   }
   elements.connectionPill.classList.toggle("is-connected", supported);
   elements.connectionPill.classList.toggle("is-partial", Boolean(supported && webMCPStatus.total && webMCPStatus.registered < webMCPStatus.total));
   elements.connectionLabel.textContent = supported
-    ? `${webMCPStatus.registered}${webMCPStatus.total && webMCPStatus.registered < webMCPStatus.total ? ` of ${webMCPStatus.total}` : ""} site tools ready`
-    : "Demo mode · site tools unavailable";
+    ? `${webMCPStatus.registered}${webMCPStatus.total && webMCPStatus.registered < webMCPStatus.total ? ` of ${webMCPStatus.total}` : ""} WebMCP tools ready`
+    : "Guided mode · WebMCP unavailable";
 }
 
 function renderBoard(state) {
@@ -260,15 +312,15 @@ function renderDemo(state) {
   const humanDemoDone = state.workspace.tasks.security?.ownerId === "maya" && state.workspace.tasks.video?.status === "in_progress";
   if (!branch || branch.status === "aborted") {
     elements.demoProgress.textContent = "Step 1 of 3";
-    elements.demoTitle.textContent = "Start the agent’s launch plan";
-    elements.demoDescription.textContent = "Creates a private branch and stages a deterministic set of launch-board changes.";
-    elements.demoPrimary.textContent = "Start agent plan";
+    elements.demoTitle.textContent = "Ask ChatGPT to reorganize the launch";
+    elements.demoDescription.textContent = "A live agent uses the page’s structured tools. The guided branch reproduces the same merge state for recording.";
+    elements.demoPrimary.textContent = "Run guided branch";
     elements.demoPrimary.dataset.action = "start-agent";
   } else if (!["merged"].includes(branch.status) && !humanDemoDone) {
     elements.demoProgress.textContent = "Step 2 of 3";
     elements.demoTitle.textContent = "Keep working while the agent stages";
-    elements.demoDescription.textContent = "Simulate four live human edits, including three that intentionally overlap with the agent’s proposal.";
-    elements.demoPrimary.textContent = "Make concurrent edits";
+    elements.demoDescription.textContent = "Apply four real edits on main while the agent branch stays pinned to its original base revision.";
+    elements.demoPrimary.textContent = "Apply human edits";
     elements.demoPrimary.dataset.action = "human-edits";
   } else if (!["merged"].includes(branch.status)) {
     elements.demoProgress.textContent = "Step 3 of 3";
@@ -331,6 +383,7 @@ function renderMerge(state) {
   elements.commitButton.disabled = remaining > 0;
   elements.mergeReadiness.textContent = remaining ? `${remaining} decision${remaining === 1 ? "" : "s"} left` : "Ready for your approval";
   elements.mergeRevisionNote.textContent = `Previewed against workspace revision ${preview.workspaceRevision}.`;
+  elements.mergeEquation.textContent = `BASE R${state.branch.baseRevision} + MAIN R${preview.workspaceRevision} + AGENT BRANCH`;
 }
 
 function renderConflict(conflict, state) {
@@ -374,6 +427,21 @@ function conflictChoice(choice, label, value, conflictId, selected) {
 
 function setupEvents() {
   $("#reset-button").addEventListener("click", requestDemoReset);
+  elements.presentationToggle.addEventListener("click", () => {
+    setPresentationMode(!presentationMode);
+  });
+  elements.copyPrompt.addEventListener("click", async () => {
+    const prompt = "Reorganize this launch plan around Friday’s deadline.";
+    try {
+      await navigator.clipboard.writeText(prompt);
+      toast("Prompt copied", "Paste it into ChatGPT while this page is open.");
+    } catch {
+      toast("Could not copy prompt", "Select the visible prompt and copy it manually.", "error");
+    }
+  });
+  window.addEventListener("mergequeue:tool-call", (event) => {
+    recordToolTrace(event.detail);
+  });
   elements.demoPrimary.addEventListener("click", () => {
     const action = elements.demoPrimary.dataset.action;
     try {
@@ -452,25 +520,44 @@ function setupEvents() {
       return;
     }
     try {
-      if (input.id) store.updateWorkspaceTask(input.id, input.patch, "human");
+      if (input.id) store.updateWorkspaceTask(input.id, input.patch, "human", input.version);
       else store.createWorkspaceTask(input.patch, "human");
       closeModal(elements.taskModal);
     } catch (error) {
       if (error.message.startsWith("Title")) {
         setTaskTitleError(error.message);
         $("#task-title").focus();
+      } else if (error.message.includes("changed in another tab")) {
+        showTaskStaleAlert(error.message);
       } else {
         toast("Task not saved", error.message, "error");
       }
     }
   });
   $("#task-title").addEventListener("input", () => setTaskTitleError(""));
+  elements.taskReload.addEventListener("click", () => {
+    const taskId = $("#task-id").value;
+    if (taskId) {
+      const originalTrigger = lastDialogTrigger;
+      const originalFallback = lastDialogFallbackSelector;
+      openTaskEditor(taskId);
+      lastDialogTrigger = originalTrigger;
+      lastDialogFallbackSelector = originalFallback;
+    }
+  });
   elements.taskArchive.addEventListener("click", () => {
     const taskId = $("#task-id").value;
     const task = store.getState().workspace.tasks[taskId];
     if (!task) return;
     const willArchive = !task.archived;
-    store.updateWorkspaceTask(taskId, { archived: willArchive }, "human");
+    const expectedVersion = Number($("#task-version").value);
+    try {
+      store.updateWorkspaceTask(taskId, { archived: willArchive }, "human", expectedVersion);
+    } catch (error) {
+      if (error.message.includes("changed in another tab")) showTaskStaleAlert(error.message);
+      else toast("Task not saved", error.message, "error");
+      return;
+    }
     closeModal(elements.taskModal);
     toast(
       willArchive ? "Task archived" : "Task restored",
@@ -545,6 +632,9 @@ function requestDemoReset() {
     actionLabel: "Reset demo",
     onConfirm: () => {
       store.reset();
+      toolTrace.splice(0);
+      traceSequence = 0;
+      renderToolTrace();
       closeMerge(false);
       toast("Demo reset", "The deterministic launch board is ready.");
     },
@@ -572,7 +662,59 @@ function syncBoardUrl() {
   else url.searchParams.delete("q");
   if (boardView.archived) url.searchParams.set("view", "archived");
   else url.searchParams.delete("view");
+  if (presentationMode) url.searchParams.set("present", "1");
+  else url.searchParams.delete("present");
   window.history.replaceState(null, "", `${url.pathname}${url.search}${url.hash}`);
+}
+
+function setPresentationMode(enabled, updateUrl = true) {
+  presentationMode = enabled;
+  document.body.classList.toggle("is-presenter", presentationMode);
+  elements.presentationToggle.setAttribute("aria-pressed", String(presentationMode));
+  elements.presentationToggle.textContent = presentationMode ? "Exit presentation" : "Presentation mode";
+  if (updateUrl) syncBoardUrl();
+}
+
+function recordToolTrace(detail = {}) {
+  if (!detail.name || !detail.callId) return;
+  const existing = toolTrace.find((item) => item.callId === detail.callId);
+  if (existing) Object.assign(existing, detail);
+  else toolTrace.unshift({ ...detail, sequence: ++traceSequence });
+  renderToolTrace();
+}
+
+function recordGuidedTrace(name, message) {
+  const callId = `guided-${++traceSequence}`;
+  toolTrace.unshift({ callId, name, source: "guided", status: "guided", message, sequence: traceSequence });
+  renderToolTrace();
+}
+
+function renderToolTrace() {
+  elements.toolTrace.replaceChildren();
+  const visible = toolTrace.slice(0, 4);
+  if (!visible.length) {
+    const empty = makeElement("li", "tool-trace-empty");
+    empty.append(
+      makeElement("strong", "", "Waiting for ChatGPT"),
+      makeElement("span", "", "Live tool calls will appear here."),
+    );
+    elements.toolTrace.append(empty);
+    elements.toolCallCount.textContent = "Waiting";
+    return;
+  }
+
+  const liveCalls = new Set(toolTrace.filter((item) => item.source === "webmcp").map((item) => item.callId)).size;
+  const guidedCalls = new Set(toolTrace.filter((item) => item.source === "guided").map((item) => item.callId)).size;
+  elements.toolCallCount.textContent = liveCalls ? `${liveCalls} live call${liveCalls === 1 ? "" : "s"}` : `${guidedCalls} guided step${guidedCalls === 1 ? "" : "s"}`;
+  for (const trace of visible) {
+    const item = makeElement("li", `tool-trace-item is-${trace.status || "success"}`);
+    const row = makeElement("div", "tool-trace-row");
+    const label = makeElement("code", "", trace.name);
+    const source = trace.source === "guided" || trace.status === "guided" ? "GUIDED" : trace.status === "running" ? "RUNNING" : trace.status === "error" ? "ERROR" : "LIVE";
+    row.append(label, makeElement("span", "", source));
+    item.append(row, makeElement("p", "", trace.message || "Tool call completed."));
+    elements.toolTrace.append(item);
+  }
 }
 
 function setTaskTitleError(message) {
@@ -582,6 +724,7 @@ function setTaskTitleError(message) {
 
 function openConfirmation({ title, description, actionLabel, onConfirm }) {
   lastDialogTrigger = document.activeElement;
+  lastDialogFallbackSelector = null;
   pendingConfirmation = onConfirm;
   elements.confirmTitle.textContent = title;
   elements.confirmDescription.textContent = description;
@@ -619,9 +762,14 @@ function populateSelects() {
 function openTaskEditor(taskId, defaultStatus = "backlog") {
   const task = taskId ? store.getState().workspace.tasks[taskId] : null;
   lastDialogTrigger = document.activeElement;
+  lastDialogFallbackSelector = taskId
+    ? `.task-card:not(.is-proposal)[data-task-id="${CSS.escape(taskId)}"]`
+    : `[data-add-status="${CSS.escape(defaultStatus)}"]`;
   setTaskTitleError("");
+  hideTaskStaleAlert();
   $("#task-modal-title").textContent = task?.archived ? "Review archived task" : task ? "Edit task" : "Create task";
   $("#task-id").value = task?.id || "";
+  $("#task-version").value = task?.version || "";
   $("#task-title").value = task?.title || "";
   $("#task-description").value = task?.description || "";
   $("#task-status").value = task?.status || defaultStatus;
@@ -640,6 +788,7 @@ function openTaskEditor(taskId, defaultStatus = "backlog") {
 function readTaskForm() {
   return {
     id: $("#task-id").value,
+    version: $("#task-version").value ? Number($("#task-version").value) : undefined,
     patch: {
       title: $("#task-title").value.trim(),
       description: $("#task-description").value.trim(),
@@ -649,6 +798,30 @@ function readTaskForm() {
       dueDate: $("#task-due").value || null,
     },
   };
+}
+
+function markTaskEditorStale(state) {
+  if (elements.taskModal.classList.contains("hidden")) return;
+  const taskId = $("#task-id").value;
+  const formVersion = Number($("#task-version").value);
+  const latestVersion = state.workspace.tasks[taskId]?.version;
+  if (taskId && latestVersion !== formVersion) {
+    showTaskStaleAlert("This task changed in another tab. Review the latest version before saving.");
+  }
+}
+
+function showTaskStaleAlert(message) {
+  elements.taskStaleMessage.textContent = message;
+  elements.taskStaleAlert.classList.remove("hidden");
+  elements.taskArchive.disabled = true;
+  elements.taskSave.disabled = true;
+}
+
+function hideTaskStaleAlert() {
+  elements.taskStaleMessage.textContent = "";
+  elements.taskStaleAlert.classList.add("hidden");
+  elements.taskArchive.disabled = false;
+  elements.taskSave.disabled = false;
 }
 
 function runDemoAgent() {
@@ -676,6 +849,9 @@ function runDemoAgent() {
     ownerId: "sam",
     dueDate: "2026-09-03",
   }, "One final gate prevents a technically complete entry from failing eligibility.");
+  recordGuidedTrace("stage_task_updates", "13 proposals staged; main remains untouched.");
+  recordGuidedTrace("begin_agent_branch", `Private branch opened from R${branch.baseRevision}.`);
+  recordGuidedTrace("get_workspace_summary", `Read main at R${branch.baseRevision}.`);
   toast("Agent branch ready", "13 proposals are staged; your live board is untouched.");
 }
 
@@ -698,12 +874,16 @@ function runDemoHumanEdits() {
 function openPreview() {
   const branch = store.getState().branch;
   if (!branch) throw new Error("Start an agent branch first.");
-  if (!branch.preview) store.previewMerge(branch.id);
+  if (!branch.preview) {
+    const preview = store.previewMerge(branch.id);
+    recordGuidedTrace("preview_merge", `${preview.stats.safe} safe · ${preview.stats.same} same · ${preview.stats.conflicts} human calls.`);
+  }
   showMerge();
 }
 
 function showMerge() {
   lastDialogTrigger = document.activeElement;
+  lastDialogFallbackSelector = null;
   renderMerge(store.getState());
   elements.mergeOverlay.classList.remove("hidden");
   syncModalState();
@@ -730,8 +910,11 @@ function syncModalState() {
 }
 
 function restoreDialogFocus() {
-  if (lastDialogTrigger instanceof HTMLElement && document.contains(lastDialogTrigger)) lastDialogTrigger.focus();
+  const fallback = lastDialogFallbackSelector ? document.querySelector(lastDialogFallbackSelector) : null;
+  const target = lastDialogTrigger instanceof HTMLElement && document.contains(lastDialogTrigger) ? lastDialogTrigger : fallback;
+  target?.focus();
   lastDialogTrigger = null;
+  lastDialogFallbackSelector = null;
 }
 
 function trapDialogFocus(event) {

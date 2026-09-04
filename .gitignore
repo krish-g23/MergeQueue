@@ -5,3 +5,7 @@ node_modules/
 coverage/
 dist/
 *.log
+video/output/preview.png
+video/output/qa-*.png
+video/output/voiceover-raw/
+.slide-build/
